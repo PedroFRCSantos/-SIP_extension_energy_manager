@@ -1,0 +1,14 @@
+Description: Allows the SIP program to manage energy, main goal try to use as much as possible green energy
+Copyright 2022
+Author: Pedro Santos
+Email:
+License: GNU GPL 3.0
+
+Requirements:
+
+##### List all plugin files below preceded by a blank line [file_name.ext path] relative to SIP directory #####
+
+energy_manager.py plugins
+energy_manager.html templates
+energy_manager.json data (generated)
+energy_manager.manifest plugins/manifests
