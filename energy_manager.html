@@ -1,8 +1,144 @@
-$def with(settings)
+$def with(settings, useDB)
 <!-- Edit: Replace "proto_vals" with settings values for your plugin if used-->
 $var title: $_(u'Energy Manager') <!--Edit: Title to show on browser tab-->
 $var page: energy_manager  <!--Edit: page name, used internally-->
 
+<script>
+    jQuery(document).ready(function(){
+		jQuery("button#cEnergyManagerChange").click(function () {
+			window.location = "/energy-manager-set-save";
+		});
+    });
+</script>
+
 <div id="plugin">
 	Ola!!!
+	$if not useDB:
+		<bold>DB plug-in not install!! Most past of funcionalities will not be available! ${useDB}</bold>
+
+	<form action="./energy-manager-set-save">
+		Interval to save data:
+
+		<select name="timeInterValReg">
+			$if ('timeInterValReg' in settings) and settings['timeInterValReg'] == 1:
+				<option value="1" selected="selected">1 min.</option>
+			$else:
+				<option value="1">1 min.</option>
+			$if ('timeInterValReg' in settings) and settings['timeInterValReg'] == 5:
+				<option value="5" selected="selected">5 min.</option>
+			$else:
+				<option value="5">5 min.</option>
+			$if ('timeInterValReg' in settings) and settings['timeInterValReg'] == 10:
+				<option value="10" selected="selected">10 min.</option>
+			$else:
+				<option value="10">10 min.</option>
+			$if ('timeInterValReg' in settings) and settings['timeInterValReg'] == 15:
+				<option value="15" selected="selected">15 min.</option>
+			$else:
+				<option value="15">15 min.</option>
+			$if ('timeInterValReg' in settings) and settings['timeInterValReg'] == 30:
+				<option value="30" selected="selected">30 min.</option>
+			$else:
+				<option value="30">30 min.</option>
+			$if ('timeInterValReg' in settings) and settings['timeInterValReg'] == 60:
+				<option value="60" selected="selected">60 min.</option>
+			$else:
+				<option value="60">60 min.</option>
+		</select>
+
+		<br /><br />
+
+		Interval to charge, 0 if not discound send to NET:
+
+		<select name="timeInterCharge">
+			$if ('timeInterCharge' in settings) and settings['timeInterCharge'] == 0:
+				<option value="0" selected="selected"></option>
+			$else:
+				<option value="0"></option>
+			$if ('timeInterCharge' in settings) and settings['timeInterCharge'] == 1:
+				<option value="1" selected="selected">1 min.</option>
+			$else:
+				<option value="1">1 min.</option>
+			$if ('timeInterCharge' in settings) and settings['timeInterCharge'] == 5:
+				<option value="5" selected="selected">5 min.</option>
+			$else:
+				<option value="5">5 min.</option>
+			$if ('timeInterCharge' in settings) and settings['timeInterCharge'] == 10:
+				<option value="10" selected="selected">10 min.</option>
+			$else:
+				<option value="10">10 min.</option>
+			$if ('timeInterCharge' in settings) and settings['timeInterCharge'] == 15:
+				<option value="15" selected="selected">15 min.</option>
+			$else:
+				<option value="15">15 min.</option>
+			$if ('timeInterCharge' in settings) and settings['timeInterCharge'] == 30:
+				<option value="30" selected="selected">30 min.</option>
+			$else:
+				<option value="30">30 min.</option>
+			$if ('timeInterCharge' in settings) and settings['timeInterCharge'] == 60:
+				<option value="60" selected="selected">60 min.</option>
+			$else:
+				<option value="60">60 min.</option>
+		</select>
+
+		<button id="cEnergyManagerChange">Change</button>
+	</form>
+
+	<form action="./energy-manager-set-save">
+		<br />
+		Please select number of NET meters:
+		<select name="netMeter">
+			$for i in range(0, 15 + 1):
+				$if ('netMeter' in settings) and len(settings['netMeter']) == i:
+					<option value="${i}" selected="selected">${i}</option>
+				$else:
+					<option value="${i}">${i}</option>
+		</select>
+
+		<br />
+		Please select number of solar meters:
+		<select name="solarMeter">
+			$for i in range(0, 15 + 1):
+				$if ('solarMeter' in settings) and len(settings['solarMeter']) == i:
+					<option value="${i}" selected="selected">${i}</option>
+				$else:
+					<option value="${i}">${i}</option>
+		</select>
+
+		<br />
+		Please select number of wind meters:
+		<select name="windMeter">
+			$for i in range(0, 15 + 1):
+				$if ('windMeter' in settings) and len(settings['windMeter']) == i:
+					<option value="${i}" selected="selected">${i}</option>
+				$else:
+					<option value="${i}">${i}</option>
+		</select>
+
+		<br />
+		Plase select other soucers meters:
+		<select name="otherSrcMeter">
+			$for i in range(0, 15 + 1):
+				$if ('otherSrcMeter' in settings) and len(settings['otherSrcMeter']) == i:
+					<option value="${i}" selected="selected">${i}</option>
+				$else:
+					<option value="${i}">${i}</option>
+		</select>
+
+		<button id="cEnergyManagerChange">Change</button>
+	</form>
+
+	<br /><br />
+
+	$if 'netMeter' not in settings:
+		<bold>No net meters install!!! Aqui</bold>
+	$else:
+		$for curData in settings["netMeter"]:
+			${curData}
+
+	$if 'solarMeter' not in settings:
+		<bold>No net meters define for solar!</bold><br />
+	$elif len(settings['solarMeter']) == 0:
+		<bold>No net meters instal in solar!</bold><br />
+
 </div>
