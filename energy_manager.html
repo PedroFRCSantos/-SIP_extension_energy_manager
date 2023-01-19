@@ -128,17 +128,124 @@ $var page: energy_manager  <!--Edit: page name, used internally-->
 		<button id="cEnergyManagerChange">Change</button>
 	</form>
 
+	<br />
+
+	<form action="./energy-manager-set-save">
+		$if 'netMeter' not in settings:
+			<br /><br /><bold>No net meters install!!! Aqui</bold><br /><br />
+		$else:
+			$for i in range(len(settings["netMeter"])):
+				<big>Net meter definitions number: ${i + 1}</big><br /><br />
+				Ip to connect to device:
+				$if len(settings["netMeter"][i]) == 2:
+					<input type="text" id="netMeter${i}" name="netMeter${i}" value="${settings["netMeter"][i][0]}"/>
+				$else:
+					<input type="text" id="netMeter${i}" name="netMeter${i}"/>
+				<br />
+				Device type to read energy:
+				<select name="netMeterDevice${i}">
+					<option value="none">Plase select device type</option>
+					$if len(settings["netMeter"][i]) == 2 and settings["netMeter"][i][1] == 'shellyEM3':
+						<option value="shellyEM3" selected="selected">Shelly EM3</option>
+					$else:
+						<option value="shellyEM3">Shelly EM3</option>
+					$if len(settings["netMeter"][i]) == 2 and settings["netMeter"][i][1] == 'shellyEM_1':
+						<option value="shellyEM_1" selected="selected">Shelly EM channel 1</option>
+					$else:
+						<option value="shellyEM_1">Shelly EM channel 1</option>
+					$if len(settings["netMeter"][i]) == 2 and settings["netMeter"][i][1] == 'shellyEM_2':
+						<option value="shellyEM_2" selected="selected">Shelly EM channel 2</option>
+					$else:
+						<option value="shellyEM_2">Shelly EM channel 2</option>
+				</select>
+
+		$if 'solarMeter' not in settings:
+			<br /><br /><bold>No Solar meters install!!! Aqui</bold><br /><br />
+		$else:
+			$for i in range(len(settings["solarMeter"])):
+				<br /><br /><big>Solar meter definitions number: ${i + 1}</big><br /><br />
+				Ip to connect to device:
+				$if len(settings["solarMeter"][i]) == 2:
+					<input type="text" id="solarMeter${i}" name="solarMeter${i}" value="${settings["solarMeter"][i][0]}"/>
+				$else:
+					<input type="text" id="solarMeter${i}" name="solarMeter${i}"/>
+				<br />
+				Device type to read energy:
+				<select name="solarMeterDevice${i}">
+					<option value="none">Plase select device type</option>
+					$if len(settings["solarMeter"][i]) == 2 and settings["solarMeter"][i][1] == 'shellyEM3':
+						<option value="shellyEM3" selected="selected">Shelly EM3</option>
+					$else:
+						<option value="shellyEM3">Shelly EM3</option>
+					$if len(settings["solarMeter"][i]) == 2 and settings["solarMeter"][i][1] == 'shellyEM_1':
+						<option value="shellyEM_1" selected="selected">Shelly EM channel 1</option>
+					$else:
+						<option value="shellyEM_1">Shelly EM channel 1</option>
+					$if len(settings["solarMeter"][i]) == 2 and settings["solarMeter"][i][1] == 'shellyEM_2':
+						<option value="shellyEM_2" selected="selected">Shelly EM channel 2</option>
+					$else:
+						<option value="shellyEM_2">Shelly EM channel 2</option>
+				</select>
+
+		$if 'windMeter' not in settings:
+			<br /><br /><bold>No Solar meters install!!! Aqui</bold><br /><br />
+		$else:
+			$for i in range(len(settings["windMeter"])):
+				<br /><br /><big>Wind meter definitions number: ${i + 1}</big><br /><br />
+				Ip to connect to device:
+				$if len(settings["windMeter"][i]) == 2:
+					<input type="text" id="windMeter${i}" name="windMeter${i}" value="${settings["windMeter"][i][0]}"/>
+				$else:
+					<input type="text" id="windMeter${i}" name="windMeter${i}"/>
+				<br />
+				Device type to read energy:
+				<select name="windMeterDevice${i}">
+					<option value="none">Plase select device type</option>
+					$if len(settings["windMeter"][i]) == 2 and settings["windMeter"][i][1] == 'shellyEM3':
+						<option value="shellyEM3" selected="selected">Shelly EM3</option>
+					$else:
+						<option value="shellyEM3">Shelly EM3</option>
+					$if len(settings["windMeter"][i]) == 2 and settings["windMeter"][i][1] == 'shellyEM_1':
+						<option value="shellyEM_1" selected="selected">Shelly EM channel 1</option>
+					$else:
+						<option value="shellyEM_1">Shelly EM channel 1</option>
+					$if len(settings["windMeter"][i]) == 2 and settings["windMeter"][i][1] == 'shellyEM_2':
+						<option value="shellyEM_2" selected="selected">Shelly EM channel 2</option>
+					$else:
+						<option value="shellyEM_2">Shelly EM channel 2</option>
+				</select>
+
+		$if 'otherSrcMeter' not in settings:
+			<br /><br /><bold>No other meters install!!! Aqui</bold><br /><br />
+		$else:
+			$for i in range(len(settings["otherSrcMeter"])):
+				<br /><br /><big>Another source meter definitions number: ${i + 1}</big><br /><br />
+				Ip to connect to device:
+				$if len(settings["otherSrcMeter"][i]) == 2:
+					<input type="text" id="otherSrcMeter${i}" name="otherSrcMeter${i}" value="${settings["otherSrcMeter"][i][0]}"/>
+				$else:
+					<input type="text" id="otherSrcMeter${i}" name="otherSrcMeter${i}"/>
+				<br />
+				Device type to read energy:
+				<select name="otherSrcMeterDevice${i}">
+					<option value="none">Plase select device type</option>
+					$if len(settings["otherSrcMeter"][i]) == 2 and settings["otherSrcMeter"][i][1] == 'shellyEM3':
+						<option value="shellyEM3" selected="selected">Shelly EM3</option>
+					$else:
+						<option value="shellyEM3">Shelly EM3</option>
+					$if len(settings["otherSrcMeter"][i]) == 2 and settings["otherSrcMeter"][i][1] == 'shellyEM_1':
+						<option value="shellyEM_1" selected="selected">Shelly EM channel 1</option>
+					$else:
+						<option value="shellyEM_1">Shelly EM channel 1</option>
+					$if len(settings["otherSrcMeter"][i]) == 2 and settings["otherSrcMeter"][i][1] == 'shellyEM_2':
+						<option value="shellyEM_2" selected="selected">Shelly EM channel 2</option>
+					$else:
+						<option value="shellyEM_2">Shelly EM channel 2</option>
+				</select>
+
+		<br /><br />
+
+		<button id="cEnergyManagerChange">Submit Changes</button>
+	</form>
 	<br /><br />
-
-	$if 'netMeter' not in settings:
-		<bold>No net meters install!!! Aqui</bold>
-	$else:
-		$for curData in settings["netMeter"]:
-			${curData}
-
-	$if 'solarMeter' not in settings:
-		<bold>No net meters define for solar!</bold><br />
-	$elif len(settings['solarMeter']) == 0:
-		<bold>No net meters instal in solar!</bold><br />
-
 </div>

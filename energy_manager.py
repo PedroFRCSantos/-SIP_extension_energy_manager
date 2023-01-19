@@ -86,7 +86,7 @@ class save_settings(ProtectedPage):
             with open(u"./data/energy_manager_tmp.json", u"r") as f:
                 settingsEnergyManagerLocal = json.load(f)
         except IOError:  # If file does not exist return empty value
-            settingsEnergyManagerLocal = {}
+            settingsEnergyManagerLocal = energy_generate_default_array()
 
         # TODO: combine tmp variable with final definitions
 
@@ -156,6 +156,34 @@ class save_settings(ProtectedPage):
                     settingsEnergyManagerLocal["otherSrcMeter"] = settingsEnergyManagerLocal["otherSrcMeter"][:numberOfOtherSrcMeter]
             except ValueError:
                 print("That's not an int!")
+
+        if 'netMeter' in settingsEnergyManagerLocal and len(settingsEnergyManagerLocal['netMeter']) > 0 and 'netMeter0' in qdict:
+            needToReboot = True
+            numberOfNetMeter = len(settingsEnergyManagerLocal['netMeter'])
+            for i in range(numberOfNetMeter):
+                if ('netMeter' + str(i)) in qdict and ('netMeterDevice' + str(i)) in qdict:
+                    settingsEnergyManagerLocal['netMeter'][i] = [qdict['netMeter' + str(i)], qdict['netMeterDevice' + str(i)]]
+
+        if 'solarMeter' in settingsEnergyManagerLocal and len(settingsEnergyManagerLocal['solarMeter']) > 0 and 'solarMeter0' in qdict:
+            needToReboot = True
+            numberOfSolarMeter = len(settingsEnergyManagerLocal['solarMeter'])
+            for i in range(numberOfSolarMeter):
+                if ('solarMeter' + str(i)) in qdict and ('solarMeter' + str(i)) in qdict:
+                    settingsEnergyManagerLocal['solarMeter'][i] = [qdict['solarMeter' + str(i)], qdict['solarMeterDevice' + str(i)]]
+
+        if 'windMeter' in settingsEnergyManagerLocal and len(settingsEnergyManagerLocal['windMeter']) > 0 and 'windMeter0' in qdict:
+            needToReboot = True
+            numberOfSolarMeter = len(settingsEnergyManagerLocal['windMeter'])
+            for i in range(numberOfSolarMeter):
+                if ('windMeter' + str(i)) in qdict and ('windMeter' + str(i)) in qdict:
+                    settingsEnergyManagerLocal['windMeter'][i] = [qdict['windMeter' + str(i)], qdict['windMeterDevice' + str(i)]]
+
+        if 'otherSrcMeter' in settingsEnergyManagerLocal and len(settingsEnergyManagerLocal['otherSrcMeter']) > 0 and 'otherSrcMeter0' in qdict:
+            needToReboot = True
+            numberOfSolarMeter = len(settingsEnergyManagerLocal['otherSrcMeter'])
+            for i in range(numberOfSolarMeter):
+                if ('otherSrcMeter' + str(i)) in qdict and ('otherSrcMeter' + str(i)) in qdict:
+                    settingsEnergyManagerLocal['otherSrcMeter'][i] = [qdict['otherSrcMeter' + str(i)], qdict['otherSrcMeterDevice' + str(i)]]
 
         with open(u"./data/energy_manager_tmp.json", u"w") as f:  # Edit: change name of json file
             json.dump(settingsEnergyManagerLocal, f)  # save to file
