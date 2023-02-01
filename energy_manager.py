@@ -370,9 +370,9 @@ def load_commands_energy():
         settingsEnergyManager = energy_generate_default_array()
         # write default values to files
         with open(u"./data/energy_manager_tmp.json", u"w") as f:  # Edit: change name of json file
-                json.dump(settingsEnergyManager, f)  # save to file
+            json.dump(settingsEnergyManager, f)  # save to file
         with open(u"./data/energy_manager.json", u"w") as f:  # Edit: change name of json file
-                json.dump(settingsEnergyManager, f)  # save to file
+            json.dump(settingsEnergyManager, f)  # save to file
 
     # Launch thread
     threadMain = Thread(target = mainThread, args = (settingsEnergyManager,))
