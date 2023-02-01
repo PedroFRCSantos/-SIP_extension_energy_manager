@@ -1,29 +1,29 @@
 from urllib.request import urlopen
 import json
 
-def get_raw_reading_shelly_em3(shellyIp, useSecure = False):
+def get_raw_reading_shelly_em_generic(shellyIp, numberOfChannels, useSecure):
     if useSecure:
         url = "https://" + shellyIp + "/status"
     else:
         url = "http://" + shellyIp + "/status"
 
     # instant power for each phase
-    power = {0.0, 0.0, 0.0}
+    power = [0.0] * numberOfChannels
 
     # power factor for each phase
-    pf = {0.0, 0.0, 0.0}
+    pf = [0.0] * numberOfChannels
 
     # voltage for each phase
-    voltage = {0.0, 0.0, 0.0}
+    voltage = [0.0] * numberOfChannels
 
     # current for each phase
-    current = {0.0, 0.0, 0.0}
+    current = [0.0] * numberOfChannels
 
     # total accumulate for each phase
-    accCons = {0.0, 0.0, 0.0}
+    accCons = [0.0] * numberOfChannels
 
     # Total accumulate send each phase
-    accSend = {0.0, 0.0, 0.0}
+    accSend = [0.0] * numberOfChannels
 
     response = urlopen(url)
     dataJson = json.loads(response.read())
@@ -36,22 +36,30 @@ def get_raw_reading_shelly_em3(shellyIp, useSecure = False):
 
             # read power factor for each phase
             for i in range(3):
-                pf = float(dataJson['emeters'][i]['pf'])
+                pf[i] = float(dataJson['emeters'][i]['pf'])
 
             # read voltage for each phase
             for i in range(3):
-                voltage = float(dataJson['emeters'][i]['voltage'])
+                voltage[i] = float(dataJson['emeters'][i]['voltage'])
 
             # read current for each phase
             for i in range(3):
-                current = float(dataJson['emeters'][i]['current'])
+                current[i] = float(dataJson['emeters'][i]['current'])
 
             # read accumulative receive for each phase
             for i in range(3):
-                accCons = float(dataJson['emeters'][i]['total'])
+                accCons[i] = float(dataJson['emeters'][i]['total'])
 
             # read accumulative send for each phase
             for i in range(3):
-                accSend = float(dataJson['emeters'][i]['total_returned'])
+                accSend[i] = float(dataJson['emeters'][i]['total_returned'])
 
-    return power, pf, voltage, current, accCons, accSend
+    hashOfData = {'power': power, 'pf': pf, 'voltage': voltage, 'current': current, 'accCons': accCons, 'accSend': accSend}
+    return hashOfData
+
+def get_raw_reading_shelly_em(shellyIp, useSecure = False):
+    return get_raw_reading_shelly_em_generic(shellyIp, 2, useSecure)
+
+def get_raw_reading_shelly_em3(shellyIp, useSecure = False):
+    return get_raw_reading_shelly_em_generic(shellyIp, 3, useSecure)
+
