@@ -11,6 +11,7 @@ from time import sleep
 import os
 from datetime import datetime
 from datetime import timedelta
+import itertools
 
 # local module imports
 from blinker import signal
@@ -40,6 +41,8 @@ urls.extend([
 
 # Add this plugin to the PLUGINS menu ["Menu Name", "URL"], (Optional)
 gv.plugin_menu.append([_(u"Energy Plugin"), u"/energy-manager-set"])
+gv.plugin_menu.sort()
+gv.plugin_menu = list(gv.plugin_menu for gv.plugin_menu,_ in itertools.groupby(gv.plugin_menu))
 
 settingsEnergyManager = {}
 isMainTreadRun = True
@@ -104,7 +107,7 @@ def mainThread(arg):
         is2Charge = (nextMinute in listMin2ReadCharge)
 
         if nextMinute == 0:
-            nextCycle = datetime(nowDateTime.year, nowDateTime.month, nowDateTime.day, nowDateTime.hour, 0, 0) + timedelta(hour=1)
+            nextCycle = datetime(nowDateTime.year, nowDateTime.month, nowDateTime.day, nowDateTime.hour, 0, 0) + timedelta(hours=1)
         else:
             nextCycle = datetime(nowDateTime.year, nowDateTime.month, nowDateTime.day, nowDateTime.hour, nextMinute, 0)
 
@@ -128,6 +131,7 @@ def mainThread(arg):
                         netMetterReading.append(newReading)
                     else:
                         newReading = get_raw_reading_shelly_em3(currMeter[0])
+                        # TODO: Check when fail reading
                         netMetterReading.append(newReading)
                         repeatedReading[currMeter[0]] = newReading
                     totalPowerMeter = totalPowerMeter + sum(newReading['power'])
@@ -138,6 +142,7 @@ def mainThread(arg):
                         netMetterReading.append(repeatedReading[currMeter[0]])
                     else:
                         newReading = get_raw_reading_shelly_em(currMeter[0])
+                        # TODO: Check when fail reading
                         netMetterReading.append(newReading)
                         repeatedReading[currMeter[0]] = newReading
 
@@ -165,6 +170,7 @@ def mainThread(arg):
                         solarMetterReading.append(repeatedReading[currMeter[0]])
                     else:
                         newReading = get_raw_reading_shelly_em3(currMeter[0])
+                        # TODO: Check when fail reading
                         solarMetterReading.append(newReading)
                         repeatedReading[currMeter[0]] = newReading
                     totalPowerGenerate = totalPowerGenerate + sum(newReading['power'])
@@ -204,6 +210,7 @@ def mainThread(arg):
                         windMetterReading.append(newReading)
                     else:
                         newReading = get_raw_reading_shelly_em3(currMeter[0])
+                        # TODO: Check when fail reading
                         windMetterReading.append(newReading)
                         repeatedReading[currMeter[0]] = newReading
                     totalPowerGenerate = totalPowerGenerate + sum(newReading['power'])
@@ -214,6 +221,7 @@ def mainThread(arg):
                         windMetterReading.append(repeatedReading[currMeter[0]])
                     else:
                         newReading = get_raw_reading_shelly_em(currMeter[0])
+                        # TODO: Check when fail reading
                         windMetterReading.append(newReading)
                         repeatedReading[currMeter[0]] = newReading
 
@@ -242,6 +250,7 @@ def mainThread(arg):
                         otherMetterReading.append(newReading)
                     else:
                         newReading = get_raw_reading_shelly_em3(currMeter[0])
+                        # TODO: Check when fail reading
                         otherMetterReading.append(newReading)
                         repeatedReading[currMeter[0]] = newReading
                     totalPowerGenerate = totalPowerGenerate + sum(newReading['power'])
@@ -252,6 +261,7 @@ def mainThread(arg):
                         otherMetterReading.append(repeatedReading[currMeter[0]])
                     else:
                         newReading = get_raw_reading_shelly_em(currMeter[0])
+                        # TODO: Check when fail reading
                         otherMetterReading.append(newReading)
                         repeatedReading[currMeter[0]] = newReading
 
