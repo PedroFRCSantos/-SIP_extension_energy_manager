@@ -25,7 +25,12 @@ def get_raw_reading_shelly_em_generic(shellyIp, numberOfChannels, useSecure):
     # Total accumulate send each phase
     accSend = [0.0] * numberOfChannels
 
-    response = urlopen(url)
+    hashOfData = {'power': power, 'pf': pf, 'voltage': voltage, 'current': current, 'accCons': accCons, 'accSend': accSend}
+
+    try:
+        response = urlopen(url)
+    except Exception:
+        return hashOfData
     dataJson = json.loads(response.read())
 
     if 'emeters' in dataJson:

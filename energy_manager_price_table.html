@@ -1,0 +1,67 @@
+$def with(definitionPricesEnergy)
+<!-- Edit: Replace "proto_vals" with settings values for your plugin if used-->
+$var title: $_(u'Energy Manager Prices') <!--Edit: Title to show on browser tab-->
+$var page: energy_manager_prices  <!--Edit: page name, used internally-->
+
+<script>
+	// Initialize behaviors
+	jQuery(document).ready(function () {
+		jQuery("button#cSubmit").click(function () {
+			jQuery("#energy-manager-price-definition-save").submit();
+		});
+	});
+</script>
+
+<div id="plugin">
+	<div>
+		$if "energyEntryPrice" in definitionPricesEnergy:
+			<table border="1">
+				<tr>
+					<th>Time</th>
+					<th>Date</th>
+					<th>Days</th>
+					<th>Price</th>
+				</tr>
+			$for curret in definitionPricesEnergy["energyEntryPrice"]:
+				<tr>
+					<td>${curret["minHour"]} - ${curret["maxHour"]}</td>
+					<td>${curret["minDate"]} - ${curret["maxDate"]}</td>
+					<td>${"monday " if curret['monday'] else ""}${"tuesday " if curret['tuesday'] else ""}${"wednesday " if curret['wednesday'] else ""}${"thursday " if curret['thursday'] else ""}${"friday " if curret['friday'] else ""}${"saturday " if curret['saturday'] else ""}${"sunday " if curret['sunday'] else ""}</td>
+					<td>${curret["currentPrice"]}</td>
+				</tr>
+			</table>
+
+		<br /><br />
+
+		<form id="energy-manager-price-definition-save" name="energy-manager-price-definition-save" action="/energy-manager-price-definition-save" method="get">
+			Price by default:
+			$if "energyDefaultPrice" in definitionPricesEnergy:
+				<input type="text" size="10" value="${definitionPricesEnergy['energyDefaultPrice']}" id="energyDefaultPrice" name="energyDefaultPrice">
+			$else:
+				<input type="text" size="10" value="" id="energyDefaultPrice" name="energyDefaultPrice">
+			<br /><br />
+			Add new entry:<br />
+			Begin Time: <input type="time" size="50" value="" id="energyTimeInit" name="energyTimeInit">
+			End Time: <input type="time" size="50" value="" id="energyTimeEnd" name="energyTimeEnd">
+			Price: <input type="text" size="10" value="" id="energyCurrentPrice" name="energyCurrentPrice">
+			<br /><br />
+			<input type="checkbox" id="monday" name="monday" value="monday"> Monday
+			<input type="checkbox" id="tuesday" name="tuesday" value="tuesday"> Tuesday
+			<input type="checkbox" id="wednesday" name="wednesday" value="wednesday"> Wednesday
+			<input type="checkbox" id="thursday" name="thursday" value="thursday"> Thursday
+			<input type="checkbox" id="friday" name="friday" value="friday"> Friday
+			<input type="checkbox" id="saturday" name="saturday" value="saturday"> Saturday
+			<input type="checkbox" id="sunday" name="sunday" value="sunday"> Sunday
+
+			<br /><br />
+
+			Valid tarif between: <input type="date" size="50" value="" id="energyValidDateInit" name="energyValidDateInit"> and
+			<input type="date" size="50" value="" id="energyValidDateEnd" name="energyValidDateEnd">
+		</form>
+	</div>
+
+	<div class="controls">
+		<button id="cSubmit" class="submit"><b>$_(u'Submit')</b></button>
+		<button id="cCancel" class="cancel danger">$_(u'Cancel')</button>
+	</div>
+</div>

@@ -6,12 +6,13 @@ from __future__ import print_function
 
 # standard library imports
 import json  # for working with data file
-from threading import Thread
+from threading import Thread, Lock
 from time import sleep
 import os
 from datetime import datetime
 from datetime import timedelta
 import itertools
+import copy
 
 # local module imports
 from blinker import signal
@@ -36,6 +37,10 @@ urls.extend([
     u"/energy-manager-set", u"plugins.energy_manager.settings",
     u"/energy-manager-set-save", u"plugins.energy_manager.save_settings",
     u"/energy-manager-home", u"plugins.energy_manager.home",
+    u"/energy-manager-subscribe-consuption", u"plugins.energy_manager.energy_equipment",
+    u"/energy-manager-ask-consuption", u"plugins.energy_manager.energy_resquest_permition",
+    u"/energy-manager-price-definition", u"plugins.energy_manager.energy_price_definition",
+    u"/energy-manager-price-definition-save", u"plugins.energy_manager.save_settings_energy_price"
     ])
 # fmt: on
 
@@ -46,6 +51,18 @@ gv.plugin_menu = list(gv.plugin_menu for gv.plugin_menu,_ in itertools.groupby(g
 
 settingsEnergyManager = {}
 isMainTreadRun = True
+
+definitionPricesEnergy = {}
+lockDefinitionPricesEnergy = Lock()
+
+dataPrices = {} # save expectation prices in the future to start to undestand when is the best time to turn on equipment
+mutexPrices = Lock()
+
+listDeviceKnowConsp = {}
+mutexDeviceKnowConsp = Lock()
+
+listSubscriptionGetEnergy = {}
+mutexSubscriptionGetEnergy = Lock()
 
 def energy_generate_default_array():
     defualtValue = {'timeInterValReg': 5, 'timeInterCharge': 15, 'netMeter': [], 'solarMeter': [], 'windMeter': [], 'otherSrcMeter': []}
@@ -368,10 +385,20 @@ def mainThread(arg):
             lastTotalEnergytAccMeter = totalEnergytAccMeter
             lastTotalEnergyAccGen = totalEnergyAccGen
 
+def updatePriceAndAvailabilityEnergy(arg):
+    global isMainTreadRun
+    while isMainTreadRun:
+        sleep(5)
+
+def checkDevicesWaitingForEnergy():
+    global isMainTreadRun
+    while isMainTreadRun:
+        sleep(5)
+
 # Read in the commands for this plugin from it's JSON file
 def load_commands_energy():
     global settingsEnergyManager
-    global threadMain
+    global isMainTreadRun, threadMain, threadPrices
 
     try:
         with open(u"./data/energy_manager.json", u"r") as f:  # Read settings from json file if it exists
@@ -384,14 +411,21 @@ def load_commands_energy():
         with open(u"./data/energy_manager.json", u"w") as f:  # Edit: change name of json file
             json.dump(settingsEnergyManager, f)  # save to file
 
-    # Launch thread
+    # Launch threads
+    isMainTreadRun = True
+
     threadMain = Thread(target = mainThread, args = (settingsEnergyManager,))
     threadMain.start()
 
+    threadPrices = Thread(target = updatePriceAndAvailabilityEnergy, args = (settingsEnergyManager,))
+    threadPrices.start()
+
 def stopMainTread():
-    global isMainTreadRun
+    global isMainTreadRun, threadMain, threadPrices
     isMainTreadRun = False
+
     threadMain.join()
+    threadPrices.join()
 
 delay_expired = signal("restarting")
 delay_expired.connect(stopMainTread) 
@@ -542,4 +576,146 @@ class home(ProtectedPage):
         settings = {}
         return template_render.energy_manager_home(settings)  # open settings page
 
+class energy_equipment(ProtectedPage):
+    """
+    inform energy manager device is workig
+    """
 
+    def GET(self):
+        qdict = web.input()
+
+        if "ExtentionName" in qdict and "DeviceRef" in qdict and "NewState" in qdict and "PowerDevice" in qdict and (qdict["NewState"] == 'on' or qdict["NewState"] == 'off'):
+            extentionName = qdict["ExtentionName"]
+            deviceRef = qdict["DeviceRef"]
+            newState = qdict["NewState"] == 'on'
+            powerDevice = qdict["PowerDevice"]
+
+            currentKey = extentionName +":"+ deviceRef
+
+            mutexDeviceKnowConsp.acquire()
+            listDeviceKnowConsp[currentKey] = {}
+            listDeviceKnowConsp[currentKey]["NewState"] = newState
+            listDeviceKnowConsp[currentKey]["PowerDevice"] = powerDevice
+            mutexDeviceKnowConsp.release()
+
+class energy_resquest_permition(ProtectedPage):
+    """
+    add new subscription to energy, client is waiting to use non priority energy
+    """
+
+    def GET(self):
+        qdict = web.input()
+
+        if "ExtentionName" in qdict and "DeviceRef" in qdict and "LinkConn" in qdict and "MinWorkingTime" and "ExpectedWorkingTime" in qdict and "EnergyPower" in qdict:
+            ententionName = qdict["ExtentionName"]
+            deviceRef = qdict["DeviceRef"]
+            linkConn = qdict["LinkConn"]
+            try:
+                minWorkingTime = float(qdict["MinWorkingTime"])
+                energyPower = float(qdict["EnergyPower"])
+                expectedWorkingTime = float(qdict["ExpectedWorkingTime"])
+            except:
+                return "NOK"
+
+            avoidIrrigationProgram = False
+            if "AvoidIrrigationProgram" in qdict and qdict["AvoidIrrigationProgram"] == 'yes':
+                avoidIrrigationProgram = True
+
+            hoursCanWait = 0 # 0 means infinite
+            if "HoursCanWait" in qdict:
+                try:
+                    # try converting to integer
+                    hoursCanWait = int(qdict["HoursCanWait"])
+                except ValueError:
+                    hoursCanWait = 0
+            mutexSubscriptionGetEnergy.acquire()
+            currentKey = ententionName + ":" + deviceRef
+
+            listSubscriptionGetEnergy[currentKey] = {}
+            listSubscriptionGetEnergy[currentKey]["ExtentionName"] = ententionName
+            listSubscriptionGetEnergy[currentKey]["DeviceRef"] = deviceRef
+            listSubscriptionGetEnergy[currentKey]["LinkConn"] = linkConn
+            listSubscriptionGetEnergy[currentKey]["MinWorkingTime"] = minWorkingTime
+            listSubscriptionGetEnergy[currentKey]["EnergyPower"] = energyPower
+            listSubscriptionGetEnergy[currentKey]["ExpectedWorkingTime"] = expectedWorkingTime
+            listSubscriptionGetEnergy[currentKey]["AvoidIrrigationProgram"] = avoidIrrigationProgram
+            listSubscriptionGetEnergy[currentKey]["HoursCanWait"] = hoursCanWait
+            mutexSubscriptionGetEnergy.release()
+
+            return "WAIT"
+            #retrun "OK" # energy is available, device can run now
+
+        # inform error
+        return "NOK"
+
+class energy_price_definition(ProtectedPage):
+    """
+    GUI to define prices
+    """
+    def GET(self):
+        global definitionPricesEnergy, lockDefinitionPricesEnergy
+
+        lockDefinitionPricesEnergy.acquire()
+        with open(u"./data/energy_manager_prices.json", u"r") as f:  # Read settings from json file if it exists
+            definitionPricesEnergy = json.load(f)
+
+        definitionPricesEnergyTMP = copy.deepcopy(definitionPricesEnergy)
+        lockDefinitionPricesEnergy.release()
+
+        return template_render.energy_manager_price_table(definitionPricesEnergyTMP)
+
+class save_settings_energy_price(ProtectedPage):
+    def GET(self):
+        global definitionPricesEnergy, lockDefinitionPricesEnergy
+
+        qdict = web.input()
+
+        lockDefinitionPricesEnergy.acquire()
+        defionionPricesEnergyTmp = copy.deepcopy(definitionPricesEnergy)
+        lockDefinitionPricesEnergy.release()
+
+        if "energyDefaultPrice" not in defionionPricesEnergyTmp:
+            defionionPricesEnergyTmp["energyDefaultPrice"] = 0.15
+
+        if "energyDefaultPrice" in qdict:
+            try:
+                newEnergyPrice = float(qdict["energyDefaultPrice"])
+                if newEnergyPrice > 0:
+                    defionionPricesEnergyTmp["energyDefaultPrice"] = newEnergyPrice
+            except:
+                pass
+
+        if "energyCurrentPrice" in qdict:
+            try:
+                newEnergyPriceCurrent = float(qdict["energyCurrentPrice"])
+                if newEnergyPriceCurrent > 0 and "energyTimeInit" in qdict and "energyTimeEnd" in qdict and \
+                   "energyValidDateInit" in qdict and "energyValidDateEnd" in qdict:
+                    if "energyEntryPrice" not in defionionPricesEnergyTmp:
+                        defionionPricesEnergyTmp["energyEntryPrice"] = []
+
+                    priceNewEntry = {'currentPrice': newEnergyPriceCurrent}
+                    priceNewEntry.update({'minHour': qdict["energyTimeInit"], 'maxHour': qdict["energyTimeEnd"]})
+                    priceNewEntry.update({'minDate': qdict["energyValidDateInit"], 'maxDate': qdict["energyValidDateEnd"]})
+
+                    # check week days active
+                    priceNewEntry.update({'monday': "monday" in qdict})
+                    priceNewEntry.update({'tuesday': "tuesday" in qdict})
+                    priceNewEntry.update({'wednesday': "wednesday" in qdict})
+                    priceNewEntry.update({'thursday': "thursday" in qdict})
+                    priceNewEntry.update({'friday': "friday" in qdict})
+                    priceNewEntry.update({'saturday': "saturday" in qdict})
+                    priceNewEntry.update({'sunday': "sunday" in qdict})
+
+                    defionionPricesEnergyTmp["energyEntryPrice"].append(priceNewEntry)
+            except:
+                pass
+
+        # TODO: sort entries by date INIT
+
+        lockDefinitionPricesEnergy.acquire()
+        definitionPricesEnergy = copy.deepcopy(defionionPricesEnergyTmp)
+        with open(u"./data/energy_manager_prices.json", u"w") as f:  # Edit: change name of json file
+                json.dump(definitionPricesEnergy, f)  # save to file
+        lockDefinitionPricesEnergy.release()
+
+        raise web.seeother(u"/energy-manager-price-definition")
