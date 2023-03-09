@@ -40,7 +40,8 @@ urls.extend([
     u"/energy-manager-subscribe-consuption", u"plugins.energy_manager.energy_equipment",
     u"/energy-manager-ask-consuption", u"plugins.energy_manager.energy_resquest_permition",
     u"/energy-manager-price-definition", u"plugins.energy_manager.energy_price_definition",
-    u"/energy-manager-price-definition-save", u"plugins.energy_manager.save_settings_energy_price"
+    u"/energy-manager-price-definition-save", u"plugins.energy_manager.save_settings_energy_price",
+    u"/energy-manager-price-definition-delete", u"plugins.energy_manager.delete_settings_energy_price"
     ])
 # fmt: on
 
@@ -655,14 +656,26 @@ class energy_price_definition(ProtectedPage):
     def GET(self):
         global definitionPricesEnergy, lockDefinitionPricesEnergy
 
+        qdict = web.input()
+
+        editEntry = -1
+        if "editValue" in qdict:
+            try:
+                editEntry = int(qdict["editValue"])
+            except:
+                pass
+
         lockDefinitionPricesEnergy.acquire()
-        with open(u"./data/energy_manager_prices.json", u"r") as f:  # Read settings from json file if it exists
-            definitionPricesEnergy = json.load(f)
+        try:
+            with open(u"./data/energy_manager_prices.json", u"r") as f:  # Read settings from json file if it exists
+                definitionPricesEnergy = json.load(f)
+        except IOError:
+            definitionPricesEnergy = {"energyDefaultPrice": 0.15, "energyEntryPrice": []}
 
         definitionPricesEnergyTMP = copy.deepcopy(definitionPricesEnergy)
         lockDefinitionPricesEnergy.release()
 
-        return template_render.energy_manager_price_table(definitionPricesEnergyTMP)
+        return template_render.energy_manager_price_table(definitionPricesEnergyTMP, editEntry)
 
 class save_settings_energy_price(ProtectedPage):
     def GET(self):
@@ -706,11 +719,30 @@ class save_settings_energy_price(ProtectedPage):
                     priceNewEntry.update({'saturday': "saturday" in qdict})
                     priceNewEntry.update({'sunday': "sunday" in qdict})
 
-                    defionionPricesEnergyTmp["energyEntryPrice"].append(priceNewEntry)
+                    priceNewEntry.update({'idx': len(defionionPricesEnergyTmp["energyEntryPrice"])})
+
+                    if "energyIdxEdit" in qdict:
+                        if qdict["energyIdxEdit"].isdigit() and int(qdict["energyIdxEdit"]) >= 0 and int(qdict["energyIdxEdit"]) < len(defionionPricesEnergyTmp["energyEntryPrice"]):
+                            defionionPricesEnergyTmp["energyEntryPrice"][int(qdict["energyIdxEdit"])] = priceNewEntry
+                    else:
+                        defionionPricesEnergyTmp["energyEntryPrice"].append(priceNewEntry)
             except:
                 pass
 
-        # TODO: sort entries by date INIT
+        # sort entries by initial date
+        list2Sort = []
+        for element in defionionPricesEnergyTmp["energyEntryPrice"]:
+            list2Sort.append(element['minDate'] + element['minHour'])
+        idxSort = [i[0] for i in sorted(enumerate(list2Sort), key=lambda x:x[1])]
+
+        sortList = []
+        i = 0
+        for currIdx in idxSort:
+            defionionPricesEnergyTmp["energyEntryPrice"][currIdx]['idx'] = i
+            sortList.append(defionionPricesEnergyTmp["energyEntryPrice"][currIdx])
+            i = i + 1
+
+        defionionPricesEnergyTmp["energyEntryPrice"] = sortList
 
         lockDefinitionPricesEnergy.acquire()
         definitionPricesEnergy = copy.deepcopy(defionionPricesEnergyTmp)
@@ -719,3 +751,24 @@ class save_settings_energy_price(ProtectedPage):
         lockDefinitionPricesEnergy.release()
 
         raise web.seeother(u"/energy-manager-price-definition")
+
+class delete_settings_energy_price(ProtectedPage):
+    def GET(self):
+        global definitionPricesEnergy, lockDefinitionPricesEnergy
+
+        qdict = web.input()
+        if "deleteIdx" in qdict and qdict["deleteIdx"].isdigit():
+            indxDelete = int(qdict["deleteIdx"])
+            lockDefinitionPricesEnergy.acquire()
+            if indxDelete >= 0 and indxDelete < len(definitionPricesEnergy["energyEntryPrice"]):
+                del definitionPricesEnergy["energyEntryPrice"][indxDelete]
+                for i in range(len(definitionPricesEnergy["energyEntryPrice"])):
+                    definitionPricesEnergy["energyEntryPrice"][i]['idx'] = i
+
+                with open(u"./data/energy_manager_prices.json", u"w") as f:  # Edit: change name of json file
+                    json.dump(definitionPricesEnergy, f)  # save to file
+            lockDefinitionPricesEnergy.release()
+
+        raise web.seeother(u"/energy-manager-price-definition")
+
+
