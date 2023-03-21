@@ -41,7 +41,8 @@ urls.extend([
     u"/energy-manager-ask-consuption", u"plugins.energy_manager.energy_resquest_permition",
     u"/energy-manager-price-definition", u"plugins.energy_manager.energy_price_definition",
     u"/energy-manager-price-definition-save", u"plugins.energy_manager.save_settings_energy_price",
-    u"/energy-manager-price-definition-delete", u"plugins.energy_manager.delete_settings_energy_price"
+    u"/energy-manager-price-definition-delete", u"plugins.energy_manager.delete_settings_energy_price",
+    u"/energy-manager-offgrid", u"plugins.energy_manager.offgrid_sensor"
     ])
 # fmt: on
 
@@ -757,6 +758,7 @@ class delete_settings_energy_price(ProtectedPage):
         global definitionPricesEnergy, lockDefinitionPricesEnergy
 
         qdict = web.input()
+
         if "deleteIdx" in qdict and qdict["deleteIdx"].isdigit():
             indxDelete = int(qdict["deleteIdx"])
             lockDefinitionPricesEnergy.acquire()
@@ -771,4 +773,8 @@ class delete_settings_energy_price(ProtectedPage):
 
         raise web.seeother(u"/energy-manager-price-definition")
 
+class offgrid_sensor(ProtectedPage):
+    def GET(self):
+        qdict = web.input()
 
+        return "||Ok offgrid"
