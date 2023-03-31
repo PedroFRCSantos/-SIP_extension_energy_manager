@@ -921,7 +921,17 @@ class offgrid_day_night(ProtectedPage):
         qdict = web.input()
 
         # https://levelup.gitconnected.com/python-sun-position-for-solar-energy-and-research-7a4ead801777
-        location = (37.127375, -8.0388342)
+
+        latVal = 0
+        logVal = 0
+
+        lockOffGridStationsDef.acquire()
+        if "DeviceRef" in qdict and qdict["DeviceRef"] in offGridStationsDef:
+            latVal = offGridStationsDef[qdict["DeviceRef"]]["Lat"]
+            logVal = offGridStationsDef[qdict["DeviceRef"]]["Log"]
+        lockOffGridStationsDef.release()
+
+        location = (latVal, logVal)
 
         currentTime = datetime.now(timezone.utc)
 
