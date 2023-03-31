@@ -13,6 +13,8 @@ from datetime import datetime
 from datetime import timedelta
 import itertools
 import copy
+from datetime import datetime,timezone
+import math
 
 # local module imports
 from blinker import signal
@@ -36,13 +38,16 @@ from energy_manager_aux import get_raw_reading_shelly_em3, get_raw_reading_shell
 urls.extend([
     u"/energy-manager-set", u"plugins.energy_manager.settings",
     u"/energy-manager-set-save", u"plugins.energy_manager.save_settings",
+    u"/off-grid-location", u"plugins.energy_manager.off_grid_location",
+    u"/energy-manager-offgrid-set-save", u"plugins.energy_manager.off_grid_save_sett",
     u"/energy-manager-home", u"plugins.energy_manager.home",
     u"/energy-manager-subscribe-consuption", u"plugins.energy_manager.energy_equipment",
     u"/energy-manager-ask-consuption", u"plugins.energy_manager.energy_resquest_permition",
     u"/energy-manager-price-definition", u"plugins.energy_manager.energy_price_definition",
     u"/energy-manager-price-definition-save", u"plugins.energy_manager.save_settings_energy_price",
     u"/energy-manager-price-definition-delete", u"plugins.energy_manager.delete_settings_energy_price",
-    u"/energy-manager-offgrid", u"plugins.energy_manager.offgrid_sensor"
+    u"/energy-manager-offgrid", u"plugins.energy_manager.offgrid_sensor",
+    u"/energy-manager-offgrid-day-night", u"plugins.energy_manager.offgrid_day_night"
     ])
 # fmt: on
 
@@ -53,6 +58,9 @@ gv.plugin_menu = list(gv.plugin_menu for gv.plugin_menu,_ in itertools.groupby(g
 
 settingsEnergyManager = {}
 isMainTreadRun = True
+
+offGridStationsDef = {}
+lockOffGridStationsDef = Lock()
 
 definitionPricesEnergy = {}
 lockDefinitionPricesEnergy = Lock()
@@ -399,7 +407,7 @@ def checkDevicesWaitingForEnergy():
 
 # Read in the commands for this plugin from it's JSON file
 def load_commands_energy():
-    global settingsEnergyManager
+    global settingsEnergyManager, offGridStationsDef
     global isMainTreadRun, threadMain, threadPrices
 
     try:
@@ -412,6 +420,14 @@ def load_commands_energy():
             json.dump(settingsEnergyManager, f)  # save to file
         with open(u"./data/energy_manager.json", u"w") as f:  # Edit: change name of json file
             json.dump(settingsEnergyManager, f)  # save to file
+
+    lockOffGridStationsDef.acquire()
+    try:
+        with open(u"./data/energy_manager_offgrid.json", u"r") as f:  # Read settings from json file if it exists
+            offGridStationsDef = json.load(f)
+    except IOError:  # If file does not exist return empty value
+        offGridStationsDef = {}
+    lockOffGridStationsDef.release()
 
     # Launch threads
     isMainTreadRun = True
@@ -568,6 +584,63 @@ class save_settings(ProtectedPage):
             raise web.seeother(u"/restart") # if same definitions change need to reboot
         else:
             raise web.seeother(u"/energy-manager-set")  # Return to definition pannel
+
+class off_grid_location(ProtectedPage):
+    """
+    Load an html page off-grid settings
+    """
+
+    def GET(self):
+        addNew = 0
+
+        qdict = web.input()
+        if "AddNew" in qdict:
+            addNew = 1
+
+        lockOffGridStationsDef.acquire()
+        tmpData = copy.deepcopy(offGridStationsDef)
+        lockOffGridStationsDef.release()
+
+        return template_render.energy_manager_off_grid_def(tmpData, addNew)
+
+class off_grid_save_sett(ProtectedPage):
+    """
+    Load save off-grid settings
+    """
+
+    def GET(self):
+        qdict = web.input()
+
+        lockOffGridStationsDef.acquire()
+        if "offGridStation" in qdict and "offgridlat" in qdict and "offgridsolar" in qdict and "offgridvirtualsolar" in qdict and "offgridwind" in qdict and "offgridvirtualwind" in qdict and "offgridtotal" in qdict and "offgridconsumption" in qdict:
+            # create new station
+            offGridStationsDef[qdict["offGridStation"]] = {'Lat': float(qdict["offgridlat"]), 'Log': float(qdict["offgridlog"]), 'SolarN': int(qdict["offgridsolar"]), 'SolarVN': int(qdict["offgridvirtualsolar"]), 'WindN': int(qdict["offgridwind"]), 'WindVN': int(qdict["offgridvirtualwind"]), 'TotalGen': int(qdict["offgridtotal"]), 'TotalConspN': int(qdict["offgridconsumption"])}
+
+        keys2Delete = []
+        for stationKey in offGridStationsDef:
+            if qdict["offGridStation" + stationKey] != stationKey:
+                keys2Delete.append(stationKey)
+
+        for i in range(len(keys2Delete)):
+            # check if station name change
+            del offGridStationsDef[keys2Delete[i]]
+
+        for stationKey in offGridStationsDef:
+            if "offGridStation" + stationKey not in qdict:
+                break
+            offGridStationsDef[qdict["offGridStation" + stationKey]] = {'Lat': float(qdict["offgridlat" + stationKey]), 'Log': float(qdict["offgridlog" + stationKey]), 'SolarN': int(qdict["offgridsolar" + stationKey]), 'SolarVN': int(qdict["offgridvirtualsolar" + stationKey]), 'WindN': int(qdict["offgridwind" + stationKey]), 'WindVN': int(qdict["offgridvirtualwind" + stationKey]), 'TotalGen': int(qdict["offgridtotal" + stationKey]), 'TotalConspN': int(qdict["offgridconsumption" + stationKey])}
+
+        for i in range(len(keys2Delete)):
+            if "offGridStation" + keys2Delete[i] not in qdict:
+                break
+            offGridStationsDef[qdict["offGridStation" + stationKey]] = {'Lat': float(qdict["offgridlat" + stationKey]), 'Log': float(qdict["offgridlog" + stationKey]), 'SolarN': int(qdict["offgridsolar" + stationKey]), 'SolarVN': int(qdict["offgridvirtualsolar" + stationKey]), 'WindN': int(qdict["offgridwind" + stationKey]), 'WindVN': int(qdict["offgridvirtualwind" + stationKey]), 'TotalGen': int(qdict["offgridtotal" + stationKey]), 'TotalConspN': int(qdict["offgridconsumption" + stationKey])}
+
+        # save 2 defitions files relative to off-grid stations
+        with open(u"./data/energy_manager_offgrid.json", u"w") as f:  # Edit: change name of json file
+            json.dump(offGridStationsDef, f)  # save to file
+        lockOffGridStationsDef.release()
+
+        raise web.seeother(u"/off-grid-location")
 
 class home(ProtectedPage):
     """
@@ -774,7 +847,90 @@ class delete_settings_energy_price(ProtectedPage):
         raise web.seeother(u"/energy-manager-price-definition")
 
 class offgrid_sensor(ProtectedPage):
+    # receide data from off-grid
     def GET(self):
         qdict = web.input()
 
         return "||Ok offgrid"
+
+def sunpos(when, location, refraction):
+# Extract the passed data
+    year, month, day, hour, minute, second, timezone = when
+    latitude, longitude = location
+# Math typing shortcuts
+    rad, deg = math.radians, math.degrees
+    sin, cos, tan = math.sin, math.cos, math.tan
+    asin, atan2 = math.asin, math.atan2
+# Convert latitude and longitude to radians
+    rlat = rad(latitude)
+    rlon = rad(longitude)
+# Decimal hour of the day at Greenwich
+    greenwichtime = hour - timezone + minute / 60 + second / 3600
+# Days from J2000, accurate from 1901 to 2099
+    daynum = (
+        367 * year
+        - 7 * (year + (month + 9) // 12) // 4
+        + 275 * month // 9
+        + day
+        - 730531.5
+        + greenwichtime / 24
+    )
+# Mean longitude of the sun
+    mean_long = daynum * 0.01720279239 + 4.894967873
+# Mean anomaly of the Sun
+    mean_anom = daynum * 0.01720197034 + 6.240040768
+# Ecliptic longitude of the sun
+    eclip_long = (
+        mean_long
+        + 0.03342305518 * sin(mean_anom)
+        + 0.0003490658504 * sin(2 * mean_anom)
+    )
+# Obliquity of the ecliptic
+    obliquity = 0.4090877234 - 0.000000006981317008 * daynum
+# Right ascension of the sun
+    rasc = atan2(cos(obliquity) * sin(eclip_long), cos(eclip_long))
+# Declination of the sun
+    decl = asin(sin(obliquity) * sin(eclip_long))
+# Local sidereal time
+    sidereal = 4.894961213 + 6.300388099 * daynum + rlon
+# Hour angle of the sun
+    hour_ang = sidereal - rasc
+# Local elevation of the sun
+    elevation = asin(sin(decl) * sin(rlat) + cos(decl) * cos(rlat) * cos(hour_ang))
+# Local azimuth of the sun
+    azimuth = atan2(
+        -cos(decl) * cos(rlat) * sin(hour_ang),
+        sin(decl) - sin(rlat) * sin(elevation),
+    )
+# Convert azimuth and elevation to degrees
+    azimuth = into_range(deg(azimuth), 0, 360)
+    elevation = into_range(deg(elevation), -180, 180)
+# Refraction correction (optional)
+    if refraction:
+        targ = rad((elevation + (10.3 / (elevation + 5.11))))
+        elevation += (1.02 / tan(targ)) / 60
+# Return azimuth and elevation in degrees
+    return (round(azimuth, 2), round(elevation, 2))
+def into_range(x, range_min, range_max):
+    shiftedx = x - range_min
+    delta = range_max - range_min
+    return (((shiftedx % delta) + delta) % delta) + range_min
+
+class offgrid_day_night(ProtectedPage):
+    def GET(self):
+        qdict = web.input()
+
+        # https://levelup.gitconnected.com/python-sun-position-for-solar-energy-and-research-7a4ead801777
+        location = (37.127375, -8.0388342)
+
+        currentTime = datetime.now(timezone.utc)
+
+        when = (currentTime.year, currentTime.month, currentTime.day, currentTime.hour, currentTime.minute, 0, 0)
+
+        azimuth, elevation = sunpos(when, location, True)
+
+        if elevation > 0:
+            return "|DAY|"
+
+        return "|NIGHT|"
+

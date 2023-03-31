@@ -1,0 +1,88 @@
+$def with(settingsOffGrid, addNewStation)
+<!-- Edit: Replace "proto_vals" with settings values for your plugin if used-->
+$var title: $_(u'Energy Manager Off-Grid Definitions') <!--Edit: Title to show on browser tab-->
+$var page: energy_manager_off_grid_def  <!--Edit: page name, used internally-->
+
+<script>
+    // Initialize behaviors
+    jQuery(document).ready(function () {
+        jQuery("#cSubmit").click(function () {
+			jQuery("#energy-manager-offgrid-set-save").submit();
+        });
+
+        jQuery("button#cCancel").click(function () {
+            window.location = "/";
+        });
+    });
+</script>
+
+<div id="plugin">
+	<div>
+		<form id="energy-manager-offgrid-set-save" name="energy-manager-offgrid-set-save" action="./energy-manager-offgrid-set-save" method="get">
+			$if addNewStation > 0:
+				<a href="./off-grid-location">Cancel Add New</a><br /><br />
+
+				Name for station <input type="text" size="50" value="" id="offGridStation" name="offGridStation"><br /><br />
+
+				Location (Latitute X Longitude):
+				<input type="number" id="offgridlat" name="offgridlat" value="0" min="-90" max="90" step="0.000000001"> X
+				<input type="number" id="offgridlog" name="offgridlog" value="0" min="-180" max="180" step="0.000000001">
+				<br /><br />
+
+				Number of solar:
+				<input type="number" id="offgridsolar" name="offgridsolar" value="0" min="0" max="50">
+				Number of virtual solar:
+				<input type="number" id="offgridvirtualsolar" name="offgridvirtualsolar" value="0" min="0" max="50">
+				<br /><br />
+
+				Number of wind:
+				<input type="number" id="offgridwind" name="offgridwind" value="0" min="0" max="50">
+				Number of virtual wind:
+				<input type="number" id="offgridvirtualwind" name="offgridvirtualwind" value="0" min="0" max="50">
+				<br /><br />
+
+				Number generation total:
+				<input type="number" id="offgridtotal" name="offgridtotal" value="0" min="0" max="50">
+				<br /><br />
+
+				Number of consumption:
+				<input type="number" id="offgridconsumption" name="offgridconsumption" value="0" min="0" max="50">
+				<br />
+			$else:
+				<a href="./off-grid-location?AddNew=1">Add New</a>
+				<br />
+
+			$for currOffGridKey in settingsOffGrid:
+				Name for station <input type="text" size="50" value="${currOffGridKey.replace(" ", "")}" id="offGridStation${currOffGridKey.replace(" ", "")}" name="offGridStation${currOffGridKey.replace(" ", "")}"><br /><br />
+
+				Location (Latitute X Longitude):
+				<input type="number" id="offgridlat${currOffGridKey.replace(" ", "")}" name="offgridlat${currOffGridKey.replace(" ", "")}" value="${settingsOffGrid[currOffGridKey]['Lat']}" min="-90" max="90" step="0.000000001"> X
+				<input type="number" id="offgridlog${currOffGridKey.replace(" ", "")}" name="offgridlog${currOffGridKey.replace(" ", "")}" value="${settingsOffGrid[currOffGridKey]['Log']}" min="-180" max="180" step="0.000000001">
+				<br /><br />
+
+				Number of solar:
+				<input type="number" id="offgridsolar${currOffGridKey.replace(" ", "")}" name="offgridsolar${currOffGridKey.replace(" ", "")}" value="${settingsOffGrid[currOffGridKey]['SolarN']}" min="0" max="50">
+				Number of virtual solar:
+				<input type="number" id="offgridvirtualsolar${currOffGridKey.replace(" ", "")}" name="offgridvirtualsolar${currOffGridKey.replace(" ", "")}" value="${settingsOffGrid[currOffGridKey]['SolarVN']}" min="0" max="50">
+				<br /><br />
+
+				Number of wind:
+				<input type="number" id="offgridwind${currOffGridKey.replace(" ", "")}" name="offgridwind${currOffGridKey.replace(" ", "")}" value="${settingsOffGrid[currOffGridKey]['WindN']}" min="0" max="50">
+				Number of virtual wind:
+				<input type="number" id="offgridvirtualwind${currOffGridKey.replace(" ", "")}" name="offgridvirtualwind${currOffGridKey.replace(" ", "")}" value="${settingsOffGrid[currOffGridKey]['WindVN']}" min="0" max="50">
+				<br /><br />
+
+				Number generation total:
+				<input type="number" id="offgridtotal${currOffGridKey.replace(" ", "")}" name="offgridtotal${currOffGridKey.replace(" ", "")}" value="${settingsOffGrid[currOffGridKey]['TotalGen']}" min="0" max="50">
+				<br /><br />
+
+				Number of consumption:
+				<input type="number" id="offgridconsumption${currOffGridKey.replace(" ", "")}" name="offgridconsumption${currOffGridKey.replace(" ", "")}" value="${settingsOffGrid[currOffGridKey]['TotalConspN']}" min="0" max="50">
+				<br />
+		</form>
+	</div>
+	<div class="controls">
+		<button id="cSubmit" class="submit"><b>$_(u'Submit')</b></button>
+		<button id="cCancel" class="cancel danger">$_(u'Cancel')</button>
+	</div>
+</div>
