@@ -78,7 +78,27 @@ $var page: energy_manager_off_grid_def  <!--Edit: page name, used internally-->
 
 				Number of consumption:
 				<input type="number" id="offgridconsumption${currOffGridKey.replace(" ", "")}" name="offgridconsumption${currOffGridKey.replace(" ", "")}" value="${settingsOffGrid[currOffGridKey]['TotalConspN']}" min="0" max="50">
-				<br />
+				<br /><br /><br />
+
+				$for i in range(settingsOffGrid[currOffGridKey]['SolarVN']):
+					Virtual Solar ${i} = 
+					$for k in range(settingsOffGrid[currOffGridKey]['TotalGen']):
+						<input type="checkbox" id="V${i}Solar${currOffGridKey.replace(" ", "")}TGen${k}" name="V${i}Solar${currOffGridKey.replace(" ", "")}TGen${k}" value="1" ${"checked" if k in settingsOffGrid[currOffGridKey]['SolarVNGenTotalId'][i] else "" }> Total Generate ${k + 1}
+					$for k in range(settingsOffGrid[currOffGridKey]['SolarN']):
+						- <input type="checkbox" id="V${i}Solar${currOffGridKey.replace(" ", "")}Solar${k}" name="V${i}Solar${currOffGridKey.replace(" ", "")}Solar${k}" value="1" ${"checked" if k in settingsOffGrid[currOffGridKey]['SolarVNGenSolarId'][i] else "" }> Solar ${k + 1}
+					$for k in range(settingsOffGrid[currOffGridKey]['WindN']):
+						- <input type="checkbox" id="V${i}Solar${currOffGridKey.replace(" ", "")}Wind${k}" name="V${i}Solar${currOffGridKey.replace(" ", "")}Wind${k}" value="1" ${"checked" if k in settingsOffGrid[currOffGridKey]['SolarVNGenWindId'][i] else "" }> Wind ${k + 1}					
+					<br /><br />
+				
+				$for i in range(settingsOffGrid[currOffGridKey]['WindVN']):
+					Virtual Wind ${i} = 
+					$for k in range(settingsOffGrid[currOffGridKey]['TotalGen']):
+						<input type="checkbox" id="V${i}Wind${currOffGridKey.replace(" ", "")}TGen${k}" name="V${i}Wind${currOffGridKey.replace(" ", "")}TGen${k}" value="1" ${"checked" if k in settingsOffGrid[currOffGridKey]['WindVNGenTotalId'][i] else "" }> Total Generate ${k + 1}
+					$for k in range(settingsOffGrid[currOffGridKey]['SolarN']):
+						- <input type="checkbox" id="V${i}Wind${currOffGridKey.replace(" ", "")}Solar${k}" name="V${i}Wind${currOffGridKey.replace(" ", "")}Solar${k}" value="1" ${"checked" if k in settingsOffGrid[currOffGridKey]['WindVNGenSolarId'][i] else "" }> Solar ${k + 1}
+					$for k in range(settingsOffGrid[currOffGridKey]['WindN']):
+						- <input type="checkbox" id="V${i}Wind${currOffGridKey.replace(" ", "")}Wind${k}" name="V${i}Wind${currOffGridKey.replace(" ", "")}Wind${k}" value="1" ${"checked" if k in settingsOffGrid[currOffGridKey]['WindVNGenWindId'][i] else "" }> Wind ${k + 1}
+					<br /><br />
 		</form>
 	</div>
 	<div class="controls">

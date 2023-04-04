@@ -591,6 +591,8 @@ class off_grid_location(ProtectedPage):
     """
 
     def GET(self):
+        global offGridStationsDef, lockOffGridStationsDef
+
         addNew = 0
 
         qdict = web.input()
@@ -609,31 +611,72 @@ class off_grid_save_sett(ProtectedPage):
     """
 
     def GET(self):
+        global offGridStationsDef, lockOffGridStationsDef
+
         qdict = web.input()
 
         lockOffGridStationsDef.acquire()
+        offGridStationsDef = {}
+
+        # key in form name of station
+        listOfFormStations = []
+        for key in qdict:
+            if len(key) > len("offGridStation") and key[:len("offGridStation")] == "offGridStation":
+                listOfFormStations.append(key[len("offGridStation"):].replace(" ", ""))
+
+        # save data to off-grid definitions
+        for stationKey in listOfFormStations:
+            offGridStationsDef[stationKey] = {'Lat': float(qdict["offgridlat" + stationKey]), 'Log': float(qdict["offgridlog" + stationKey]), 'SolarN': int(qdict["offgridsolar" + stationKey]), 'SolarVN': int(qdict["offgridvirtualsolar" + stationKey]), 'WindN': int(qdict["offgridwind" + stationKey]), 'WindVN': int(qdict["offgridvirtualwind" + stationKey]), 'TotalGen': int(qdict["offgridtotal" + stationKey]), 'TotalConspN': int(qdict["offgridconsumption" + stationKey]), 'SolarVNGenTotalId': [], 'SolarVNGenSolarId': [], 'SolarVNGenWindId': [], 'WindVNGenTotalId': [], 'WindVNGenSolarId': [], 'WindVNGenWindId': []}
+
+        # add new station
         if "offGridStation" in qdict and "offgridlat" in qdict and "offgridsolar" in qdict and "offgridvirtualsolar" in qdict and "offgridwind" in qdict and "offgridvirtualwind" in qdict and "offgridtotal" in qdict and "offgridconsumption" in qdict:
             # create new station
-            offGridStationsDef[qdict["offGridStation"]] = {'Lat': float(qdict["offgridlat"]), 'Log': float(qdict["offgridlog"]), 'SolarN': int(qdict["offgridsolar"]), 'SolarVN': int(qdict["offgridvirtualsolar"]), 'WindN': int(qdict["offgridwind"]), 'WindVN': int(qdict["offgridvirtualwind"]), 'TotalGen': int(qdict["offgridtotal"]), 'TotalConspN': int(qdict["offgridconsumption"])}
+            offGridStationsDef[qdict["offGridStation"].replace(" ", "")] = {'Lat': float(qdict["offgridlat"]), 'Log': float(qdict["offgridlog"]), 'SolarN': int(qdict["offgridsolar"]), 'SolarVN': int(qdict["offgridvirtualsolar"]), 'WindN': int(qdict["offgridwind"]), 'WindVN': int(qdict["offgridvirtualwind"]), 'TotalGen': int(qdict["offgridtotal"]), 'TotalConspN': int(qdict["offgridconsumption"]), 'SolarVNGenTotalId': [], 'SolarVNGenSolarId': [], 'SolarVNGenWindId': [], 'WindVNGenTotalId': [], 'WindVNGenSolarId': [], 'WindVNGenWindId': []}
+            listOfFormStations.append(qdict["offGridStation"].replace(" ", ""))
 
-        keys2Delete = []
-        for stationKey in offGridStationsDef:
-            if qdict["offGridStation" + stationKey] != stationKey:
-                keys2Delete.append(stationKey)
+        # add virtual solar
+        for stationKey in listOfFormStations:
+            offGridStationsDef[stationKey]['SolarVNGenTotalId'] = []
+            offGridStationsDef[stationKey]['SolarVNGenSolarId'] = []
+            offGridStationsDef[stationKey]['SolarVNGenWindId'] = []
 
-        for i in range(len(keys2Delete)):
-            # check if station name change
-            del offGridStationsDef[keys2Delete[i]]
+            for i in range(offGridStationsDef[stationKey]['WindVN']):
+                offGridStationsDef[stationKey]['SolarVNGenTotalId'].append([])
+                for k in range(offGridStationsDef[stationKey]['TotalGen']):
+                    if "V"+ str(i) +"Solar"+ stationKey.replace(" ", "") +"TGen"+ str(k) in qdict:
+                        offGridStationsDef[stationKey]['SolarVNGenTotalId'][i].append(k)
 
-        for stationKey in offGridStationsDef:
-            if "offGridStation" + stationKey not in qdict:
-                break
-            offGridStationsDef[qdict["offGridStation" + stationKey]] = {'Lat': float(qdict["offgridlat" + stationKey]), 'Log': float(qdict["offgridlog" + stationKey]), 'SolarN': int(qdict["offgridsolar" + stationKey]), 'SolarVN': int(qdict["offgridvirtualsolar" + stationKey]), 'WindN': int(qdict["offgridwind" + stationKey]), 'WindVN': int(qdict["offgridvirtualwind" + stationKey]), 'TotalGen': int(qdict["offgridtotal" + stationKey]), 'TotalConspN': int(qdict["offgridconsumption" + stationKey])}
+                offGridStationsDef[stationKey]['SolarVNGenSolarId'].append([])
+                for k in range(offGridStationsDef[stationKey]['SolarN']):
+                    if "V"+ str(i) +"Solar"+ stationKey.replace(" ", "") +"Solar"+ str(k) in qdict:
+                        offGridStationsDef[stationKey]['SolarVNGenSolarId'][i].append(k)
 
-        for i in range(len(keys2Delete)):
-            if "offGridStation" + keys2Delete[i] not in qdict:
-                break
-            offGridStationsDef[qdict["offGridStation" + stationKey]] = {'Lat': float(qdict["offgridlat" + stationKey]), 'Log': float(qdict["offgridlog" + stationKey]), 'SolarN': int(qdict["offgridsolar" + stationKey]), 'SolarVN': int(qdict["offgridvirtualsolar" + stationKey]), 'WindN': int(qdict["offgridwind" + stationKey]), 'WindVN': int(qdict["offgridvirtualwind" + stationKey]), 'TotalGen': int(qdict["offgridtotal" + stationKey]), 'TotalConspN': int(qdict["offgridconsumption" + stationKey])}
+                offGridStationsDef[stationKey]['SolarVNGenWindId'].append([])
+                for k in range(offGridStationsDef[stationKey]['WindN']):
+                    if "V"+ str(i) +"Solar"+ stationKey.replace(" ", "") +"Wind"+ str(k) in qdict:
+                        offGridStationsDef[stationKey]['SolarVNGenWindId'][i].append(k)
+
+        # add virtual wind
+        for stationKey in listOfFormStations:
+            offGridStationsDef[stationKey]['WindVNGenTotalId'] = []
+            offGridStationsDef[stationKey]['WindVNGenSolarId'] = []
+            offGridStationsDef[stationKey]['WindVNGenWindId'] = []
+
+            for i in range(offGridStationsDef[stationKey]['WindVN']):
+                offGridStationsDef[stationKey]['WindVNGenTotalId'].append([])
+                for k in range(offGridStationsDef[stationKey]['TotalGen']):
+                    if "V"+ str(i) +"Wind"+ stationKey.replace(" ", "") +"TGen"+ str(k) in qdict:
+                        offGridStationsDef[stationKey]['WindVNGenTotalId'][i].append(k)
+
+                offGridStationsDef[stationKey]['WindVNGenSolarId'].append([])
+                for k in range(offGridStationsDef[stationKey]['SolarN']):
+                    if "V"+ str(i) +"Wind"+ stationKey.replace(" ", "") +"Solar"+ str(k) in qdict:
+                        offGridStationsDef[stationKey]['WindVNGenSolarId'][i].append(k)
+
+                offGridStationsDef[stationKey]['WindVNGenWindId'].append([])
+                for k in range(offGridStationsDef[stationKey]['WindN']):
+                    if "V"+ str(i) +"Wind"+ stationKey.replace(" ", "") +"Wind"+ str(k) in qdict:
+                        offGridStationsDef[stationKey]['WindVNGenWindId'][i].append(k)
 
         # save 2 defitions files relative to off-grid stations
         with open(u"./data/energy_manager_offgrid.json", u"w") as f:  # Edit: change name of json file
