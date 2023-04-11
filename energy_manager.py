@@ -15,6 +15,7 @@ import itertools
 import copy
 from datetime import datetime,timezone
 import math
+import queue
 
 # local module imports
 from blinker import signal
@@ -27,6 +28,7 @@ from webpages import ProtectedPage
 try:
     from db_logger_core import db_logger_read_definitions
     from db_logger_generic_table import create_generic_table, add_date_generic_table
+    from db_logger_off_grid import add_db_values
     withDBLogger = True
 except ImportError:
     withDBLogger = False
@@ -59,8 +61,17 @@ gv.plugin_menu = list(gv.plugin_menu for gv.plugin_menu,_ in itertools.groupby(g
 settingsEnergyManager = {}
 isMainTreadRun = True
 
+# Definition off-frid sensor
 offGridStationsDef = {}
 lockOffGridStationsDef = Lock()
+
+# read data from http requests
+commandsOffGridQueu = queue.Queue()
+offGridDateOnDemand = {}
+offGridDateOnDemandLock = Lock()
+threadOfGridProcessData = None
+threadOfGridProcessIsRunning = True
+
 
 definitionPricesEnergy = {}
 lockDefinitionPricesEnergy = Lock()
@@ -405,10 +416,110 @@ def checkDevicesWaitingForEnergy():
     while isMainTreadRun:
         sleep(5)
 
+def processOffGridData():
+    global threadOfGridProcessIsRunning, commandsOffGridQueu
+
+    lastDateTimeSave = None
+
+    if withDBLogger:
+        dbDefinitions = db_logger_read_definitions()
+
+    while threadOfGridProcessIsRunning:
+        dataOffGrind = commandsOffGridQueu.get()
+
+        lockOffGridStationsDef.acquire()
+        tmpDataOffGrid = copy.deepcopy(offGridStationsDef)
+        lockOffGridStationsDef.release()
+
+        if "OffGridRef" in dataOffGrind and dataOffGrind["OffGridRef"] in tmpDataOffGrid:
+            # check if all data present
+            allData = True
+            for i in range(tmpDataOffGrid[dataOffGrind["OffGridRef"]]["SolarN"]):
+                if "VSOLAR" + str(i + 1) not in dataOffGrind or "CSOLAR" + str(i + 1) not in dataOffGrind or "ESOLAR" + str(i + 1) not in dataOffGrind:
+                    allData = False
+                else:
+                    try:
+                        dumpFloat = float(dataOffGrind["VSOLAR" + str(i + 1)])
+                        dumpFloat = float(dataOffGrind["CSOLAR" + str(i + 1)])
+                        dumpFloat = float(dataOffGrind["ESOLAR" + str(i + 1)])
+                    except:
+                        allData = False
+
+            for i in range(tmpDataOffGrid[dataOffGrind["OffGridRef"]]["WindN"]):
+                if "VWIND" + str(i + 1) not in dataOffGrind or "CWIND" + str(i + 1) not in dataOffGrind or "EWIND" + str(i + 1) not in dataOffGrind:
+                    allData = False
+                else:
+                    try:
+                        dumpFloat = float(dataOffGrind["VWIND" + str(i + 1)])
+                        dumpFloat = float(dataOffGrind["CWIND" + str(i + 1)])
+                        dumpFloat = float(dataOffGrind["EWIND" + str(i + 1)])
+                    except:
+                        allData = False
+
+            for i in range(tmpDataOffGrid[dataOffGrind["OffGridRef"]]["TotalGen"]):
+                if "VGENTOTAL" + str(i + 1) not in dataOffGrind or "CGENTOTAL" + str(i + 1) not in dataOffGrind or "EGENTOTAL" + str(i + 1) not in dataOffGrind:
+                    allData = False
+                else:
+                    try:
+                        dumpFloat = float(dataOffGrind["VGENTOTAL" + str(i + 1)])
+                        dumpFloat = float(dataOffGrind["CGENTOTAL" + str(i + 1)])
+                        dumpFloat = float(dataOffGrind["EGENTOTAL" + str(i + 1)])
+                    except:
+                        allData = False
+
+            for i in range(tmpDataOffGrid[dataOffGrind["OffGridRef"]]["TotalConspN"]):
+                if "VCONSP" + str(i + 1) not in dataOffGrind or "CCONSP" + str(i + 1) not in dataOffGrind or "ECONSP" + str(i + 1) not in dataOffGrind:
+                    allData = False
+                else:
+                    try:
+                        dumpFloat = float(dataOffGrind["VCONSP" + str(i + 1)])
+                        dumpFloat = float(dataOffGrind["CCONSP" + str(i + 1)])
+                        dumpFloat = float(dataOffGrind["ECONSP" + str(i + 1)])
+                    except:
+                        allData = False
+
+            if "DateTime" not in dataOffGrind:
+                allData = False
+
+            if allData:
+                # save to DB id needed
+                offGridDateOnDemandLock.acquire()
+                if dataOffGrind["OffGridRef"] not in offGridDateOnDemand:
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]] = {}
+
+                for i in range(tmpDataOffGrid[dataOffGrind["OffGridRef"]]["SolarN"]):
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["VSOLAR"+ str(i + 1)] = float(dataOffGrind["VSOLAR" + str(i + 1)])
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["CSOLAR"+ str(i + 1)] = float(dataOffGrind["CSOLAR" + str(i + 1)])
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["ESOLAR"+ str(i + 1)] = float(dataOffGrind["ESOLAR" + str(i + 1)])
+
+                for i in range(tmpDataOffGrid[dataOffGrind["OffGridRef"]]["WindN"]):
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["VWIND"+ str(i + 1)] = float(dataOffGrind["VWIND" + str(i + 1)])
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["CWIND"+ str(i + 1)] = float(dataOffGrind["CWIND" + str(i + 1)])
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["EWIND"+ str(i + 1)] = float(dataOffGrind["EWIND" + str(i + 1)])
+
+                for i in range(tmpDataOffGrid[dataOffGrind["OffGridRef"]]["TotalGen"]):
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["VGENTOTAL"+ str(i + 1)] = float(dataOffGrind["VGENTOTAL" + str(i + 1)])
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["CGENTOTAL"+ str(i + 1)] = float(dataOffGrind["CGENTOTAL" + str(i + 1)])
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["EGENTOTAL"+ str(i + 1)] = float(dataOffGrind["EGENTOTAL" + str(i + 1)])
+
+                for i in range(tmpDataOffGrid[dataOffGrind["OffGridRef"]]["TotalConspN"]):
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["VCONSP"+ str(i + 1)] = float(dataOffGrind["VCONSP" + str(i + 1)])
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["CCONSP"+ str(i + 1)] = float(dataOffGrind["CCONSP" + str(i + 1)])
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["ECONSP"+ str(i + 1)] = float(dataOffGrind["ECONSP" + str(i + 1)])
+
+                offGridDateOnDemand[dataOffGrind["OffGridRef"]]["DateTime"] = dataOffGrind["DateTime"]
+
+                offGridDateOnDemandLock.release()
+
+                if withDBLogger and (lastDateTimeSave == None or (dataOffGrind["DateTime"] - lastDateTimeSave).total_seconds() / 60.0 > 5.0):
+                    add_db_values(dbDefinitions, tmpDataOffGrid, dataOffGrind)
+
+                    lastDateTimeSave = dataOffGrind["DateTime"]
+
 # Read in the commands for this plugin from it's JSON file
 def load_commands_energy():
     global settingsEnergyManager, offGridStationsDef
-    global isMainTreadRun, threadMain, threadPrices
+    global isMainTreadRun, threadMain, threadPrices, threadOfGridProcessData
 
     try:
         with open(u"./data/energy_manager.json", u"r") as f:  # Read settings from json file if it exists
@@ -437,6 +548,9 @@ def load_commands_energy():
 
     threadPrices = Thread(target = updatePriceAndAvailabilityEnergy, args = (settingsEnergyManager,))
     threadPrices.start()
+
+    threadOfGridProcessData = Thread(target = processOffGridData)
+    threadOfGridProcessData.start()
 
 def stopMainTread():
     global isMainTreadRun, threadMain, threadPrices
@@ -894,6 +1008,10 @@ class offgrid_sensor(ProtectedPage):
     def GET(self):
         qdict = web.input()
 
+        # insert date time receive and add to queu to precess
+        qdict["DateTime"] = datetime.now()
+        commandsOffGridQueu.put(qdict)
+
         return "||Ok offgrid"
 
 def sunpos(when, location, refraction):
@@ -986,4 +1104,3 @@ class offgrid_day_night(ProtectedPage):
             return "|DAY|"
 
         return "|NIGHT|"
-
