@@ -3,6 +3,7 @@
 
 # Python 2/3 compatibility imports
 from __future__ import print_function
+from http.client import LineTooLong
 
 # standard library imports
 import json  # for working with data file
@@ -28,7 +29,7 @@ from webpages import ProtectedPage
 try:
     from db_logger_core import db_logger_read_definitions
     from db_logger_generic_table import create_generic_table, add_date_generic_table
-    from db_logger_off_grid import add_db_values
+    from db_logger_off_grid import add_db_values, get_init_value
     withDBLogger = True
 except ImportError:
     withDBLogger = False
@@ -48,8 +49,10 @@ urls.extend([
     u"/energy-manager-price-definition", u"plugins.energy_manager.energy_price_definition",
     u"/energy-manager-price-definition-save", u"plugins.energy_manager.save_settings_energy_price",
     u"/energy-manager-price-definition-delete", u"plugins.energy_manager.delete_settings_energy_price",
+    u"/energy-manager-offgrid-init", u"plugins.energy_manager.offgrid_initial_data",
     u"/energy-manager-offgrid", u"plugins.energy_manager.offgrid_sensor",
-    u"/energy-manager-offgrid-day-night", u"plugins.energy_manager.offgrid_day_night"
+    u"/energy-manager-offgrid-day-night", u"plugins.energy_manager.offgrid_day_night",
+    u"/energy-manager-offgrid-demand", u"plugins.energy_manager.offgrid_ged_current_val",
     ])
 # fmt: on
 
@@ -417,7 +420,7 @@ def checkDevicesWaitingForEnergy():
         sleep(5)
 
 def processOffGridData():
-    global threadOfGridProcessIsRunning, commandsOffGridQueu
+    global threadOfGridProcessIsRunning, commandsOffGridQueu, offGridStationsDef, lockOffGridStationsDef
 
     lastDateTimeSave = None
 
@@ -490,21 +493,25 @@ def processOffGridData():
                 for i in range(tmpDataOffGrid[dataOffGrind["OffGridRef"]]["SolarN"]):
                     offGridDateOnDemand[dataOffGrind["OffGridRef"]]["VSOLAR"+ str(i + 1)] = float(dataOffGrind["VSOLAR" + str(i + 1)])
                     offGridDateOnDemand[dataOffGrind["OffGridRef"]]["CSOLAR"+ str(i + 1)] = float(dataOffGrind["CSOLAR" + str(i + 1)])
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["PSOLAR"+ str(i + 1)] = offGridDateOnDemand[dataOffGrind["OffGridRef"]]["VSOLAR"+ str(i + 1)] * offGridDateOnDemand[dataOffGrind["OffGridRef"]]["CSOLAR"+ str(i + 1)]
                     offGridDateOnDemand[dataOffGrind["OffGridRef"]]["ESOLAR"+ str(i + 1)] = float(dataOffGrind["ESOLAR" + str(i + 1)])
 
                 for i in range(tmpDataOffGrid[dataOffGrind["OffGridRef"]]["WindN"]):
                     offGridDateOnDemand[dataOffGrind["OffGridRef"]]["VWIND"+ str(i + 1)] = float(dataOffGrind["VWIND" + str(i + 1)])
                     offGridDateOnDemand[dataOffGrind["OffGridRef"]]["CWIND"+ str(i + 1)] = float(dataOffGrind["CWIND" + str(i + 1)])
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["PWIND"+ str(i + 1)] = offGridDateOnDemand[dataOffGrind["OffGridRef"]]["VWIND"+ str(i + 1)] * offGridDateOnDemand[dataOffGrind["OffGridRef"]]["CWIND"+ str(i + 1)]
                     offGridDateOnDemand[dataOffGrind["OffGridRef"]]["EWIND"+ str(i + 1)] = float(dataOffGrind["EWIND" + str(i + 1)])
 
                 for i in range(tmpDataOffGrid[dataOffGrind["OffGridRef"]]["TotalGen"]):
                     offGridDateOnDemand[dataOffGrind["OffGridRef"]]["VGENTOTAL"+ str(i + 1)] = float(dataOffGrind["VGENTOTAL" + str(i + 1)])
                     offGridDateOnDemand[dataOffGrind["OffGridRef"]]["CGENTOTAL"+ str(i + 1)] = float(dataOffGrind["CGENTOTAL" + str(i + 1)])
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["PGENTOTAL"+ str(i + 1)] = offGridDateOnDemand[dataOffGrind["OffGridRef"]]["VGENTOTAL"+ str(i + 1)] * offGridDateOnDemand[dataOffGrind["OffGridRef"]]["CGENTOTAL"+ str(i + 1)]
                     offGridDateOnDemand[dataOffGrind["OffGridRef"]]["EGENTOTAL"+ str(i + 1)] = float(dataOffGrind["EGENTOTAL" + str(i + 1)])
 
                 for i in range(tmpDataOffGrid[dataOffGrind["OffGridRef"]]["TotalConspN"]):
                     offGridDateOnDemand[dataOffGrind["OffGridRef"]]["VCONSP"+ str(i + 1)] = float(dataOffGrind["VCONSP" + str(i + 1)])
                     offGridDateOnDemand[dataOffGrind["OffGridRef"]]["CCONSP"+ str(i + 1)] = float(dataOffGrind["CCONSP" + str(i + 1)])
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["PCONSP"+ str(i + 1)] = offGridDateOnDemand[dataOffGrind["OffGridRef"]]["VCONSP"+ str(i + 1)] * offGridDateOnDemand[dataOffGrind["OffGridRef"]]["CCONSP"+ str(i + 1)]
                     offGridDateOnDemand[dataOffGrind["OffGridRef"]]["ECONSP"+ str(i + 1)] = float(dataOffGrind["ECONSP" + str(i + 1)])
 
                 offGridDateOnDemand[dataOffGrind["OffGridRef"]]["DateTime"] = dataOffGrind["DateTime"]
@@ -805,8 +812,13 @@ class home(ProtectedPage):
     """
 
     def GET(self):
-        settings = {}
-        return template_render.energy_manager_home(settings)  # open settings page
+        global lockOffGridStationsDef, offGridStationsDef
+
+        lockOffGridStationsDef.acquire()
+        tmpDataOffGrid = copy.deepcopy(offGridStationsDef)
+        lockOffGridStationsDef.release()
+
+        return template_render.energy_manager_home(tmpDataOffGrid)  # open settings page
 
 class energy_equipment(ProtectedPage):
     """
@@ -1003,6 +1015,20 @@ class delete_settings_energy_price(ProtectedPage):
 
         raise web.seeother(u"/energy-manager-price-definition")
 
+class offgrid_initial_data(ProtectedPage):
+    # send data of initial data
+    def GET(self):
+        qdict = web.input()
+
+        if "OffGridName" not in qdict:
+            return "NONE"
+
+        if withDBLogger:
+            dbDefinitions = db_logger_read_definitions()
+            return get_init_value(dbDefinitions, qdict["OffGridName"])
+        else:
+            return "NONE"
+
 class offgrid_sensor(ProtectedPage):
     # receide data from off-grid
     def GET(self):
@@ -1104,3 +1130,44 @@ class offgrid_day_night(ProtectedPage):
             return "|DAY|"
 
         return "|NIGHT|"
+
+class offgrid_ged_current_val(ProtectedPage):
+    def GET(self):
+        global offGridStationsDef
+
+        qdict = web.input()
+
+        dataOut = ""
+
+        if "OffGridRef" in qdict and "SourceName" in qdict:
+            lockOffGridStationsDef.acquire()
+            offGridDateOnDemandLock.acquire()
+
+            if qdict["OffGridRef"] in offGridDateOnDemand:
+                if qdict["SourceName"] in offGridDateOnDemand[qdict["OffGridRef"]]:
+                    dataOut = str(round(offGridDateOnDemand[qdict["OffGridRef"]][qdict["SourceName"]], 2))
+                elif qdict["SourceName"] == "PSOLAR":
+                    totalSolarP = 0
+                    for i in range(offGridStationsDef[qdict["OffGridRef"]]["SolarN"]):
+                        totalSolarP = totalSolarP + offGridDateOnDemand[qdict["OffGridRef"]]["PSOLAR"+ str(i + 1)]
+                    dataOut = str(round(totalSolarP, 2))
+                elif qdict["SourceName"] == "PWIND":
+                    totalWindP = 0
+                    for i in range(offGridStationsDef[qdict["OffGridRef"]]["WindN"]):
+                        totalWindP = totalWindP + offGridDateOnDemand[qdict["OffGridRef"]]["PWIND"+ str(i + 1)]
+                    dataOut = str(round(totalWindP, 2))
+                elif qdict["SourceName"] == "PGENTOTAL":
+                    totalPTGen = 0
+                    for i in range(offGridStationsDef[qdict["OffGridRef"]]["TotalGen"]):
+                        totalPTGen = totalPTGen + offGridDateOnDemand[qdict["OffGridRef"]]["PGENTOTAL"+ str(i + 1)]
+                    dataOut = str(round(totalPTGen, 2))
+                elif qdict["SourceName"] == "PCONSP":
+                    totalPConsp = 0
+                    for i in range(offGridStationsDef[qdict["OffGridRef"]]["TotalConspN"]):
+                        totalPConsp = totalPConsp + offGridDateOnDemand[qdict["OffGridRef"]]["PCONSP"+ str(i + 1)]
+                        dataOut = str(round(totalPConsp, 2))
+
+            lockOffGridStationsDef.release()
+            offGridDateOnDemandLock.release()
+
+        return dataOut

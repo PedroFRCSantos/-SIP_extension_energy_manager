@@ -3,6 +3,90 @@ $def with(settings)
 $var title: $_(u'Energy Manager Home') <!--Edit: Title to show on browser tab-->
 $var page: energy_manager_home  <!--Edit: page name, used internally-->
 
+
+<script>
+	jQuery(document).ready(function () {
+		jQuery("button#Button").click(function () {
+			window.location = "/flow-home";
+		});
+
+		jQuery("button#defButton").click(function () {
+			window.location = "/flow-set";
+		});
+	});
+
+	function getXHR() {
+		if (window.XMLHttpRequest) { // code for IE7+, Firefox, Chrome, Opera, Safari
+			return new XMLHttpRequest();
+		}
+		else { // code for IE6, IE5
+			return new ActiveXObject("Microsoft.XMLHTTP");
+		}
+	}
+
+	function updateEnergyStatus() {
+		var xmlhttp = getXHR();
+
+        $for offGridName in settings:
+			$for i in range(settings[offGridName]["SolarN"]):
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName}&SourceName=VSOLAR${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName}SOLARV${i}").innerHTML = xmlhttp.responseText + " V";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName}&SourceName=CSOLAR${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName}SOLARC${i}").innerHTML = xmlhttp.responseText + " A";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName}&SourceName=PSOLAR${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName}SOLARP${i}").innerHTML = xmlhttp.responseText + " W";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName}&SourceName=ESOLAR${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName}SOLARE${i}").innerHTML = xmlhttp.responseText + " W";
+	}
+
+	const tellTime = async function () {
+		updateEnergyStatus();
+	}
+
+	const minutes = 0.1;
+	const interval = minutes * 60 * 1000;
+
+	setInterval(function () {
+		// catch all the errors.
+		tellTime().catch(console.log);
+	}, interval);
+
+	document.addEventListener('DOMContentLoaded', function () {
+		updateEnergyStatus();
+	}, false);
+</script>
+
 <div id="plugin">
-    Ola!!! Home
+    $for offGridName in settings:
+		${offGridName}
+		$if settings[offGridName]["SolarN"] > 0:
+		<br />
+		Solar Generation:
+		<br />
+		<table style="width:100%" border="1">
+			<tr>
+				<th></th>
+				<th>Voltage</th>
+				<th>Current</th>
+				<th>Power</th>
+				<th>Energy</th>
+			</tr>
+			$for i in range(settings[offGridName]["SolarN"]):
+				<tr>
+					<td>Solar ${i}</td>
+					<td id="OffGrid${offGridName}SOLARV${i}"></td>
+					<td id="OffGrid${offGridName}SOLARC${i}"></td>
+					<td id="OffGrid${offGridName}SOLARP${i}">Mexico</td>
+					<td id="OffGrid${offGridName}SOLARE${i}">Mexico</td>
+				</tr>
+		</table>
+
+    <br /><br />
 </div>
