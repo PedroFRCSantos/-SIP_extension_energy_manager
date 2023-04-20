@@ -28,22 +28,178 @@ $var page: energy_manager_home  <!--Edit: page name, used internally-->
 		var xmlhttp = getXHR();
 
         $for offGridName in settings:
+			xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=PPRODUCTION", false);
+			xmlhttp.send(null);
+			document.getElementById("OffGrid${offGridName.replace(" ", "")}PRODUCTION").innerHTML = xmlhttp.responseText + " W";
+
+			xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=PCONSUPTION", false);
+			xmlhttp.send(null);
+			document.getElementById("OffGrid${offGridName.replace(" ", "")}CONSUPTION").innerHTML = xmlhttp.responseText + " W";
+
+			xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=PBATTERY", false);
+			xmlhttp.send(null);
+			document.getElementById("OffGrid${offGridName.replace(" ", "")}BATTERY").innerHTML = xmlhttp.responseText + " W";
+
 			$for i in range(settings[offGridName]["SolarN"]):
-				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName}&SourceName=VSOLAR${i + 1}", false);
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=VSOLAR${i + 1}", false);
 				xmlhttp.send(null);
-				document.getElementById("OffGrid${offGridName}SOLARV${i}").innerHTML = xmlhttp.responseText + " V";
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}SOLARV${i}").innerHTML = xmlhttp.responseText + " V";
 
-				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName}&SourceName=CSOLAR${i + 1}", false);
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=CSOLAR${i + 1}", false);
 				xmlhttp.send(null);
-				document.getElementById("OffGrid${offGridName}SOLARC${i}").innerHTML = xmlhttp.responseText + " A";
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}SOLARC${i}").innerHTML = xmlhttp.responseText + " A";
 
-				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName}&SourceName=PSOLAR${i + 1}", false);
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=PSOLAR${i + 1}", false);
 				xmlhttp.send(null);
 				document.getElementById("OffGrid${offGridName}SOLARP${i}").innerHTML = xmlhttp.responseText + " W";
 
-				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName}&SourceName=ESOLAR${i + 1}", false);
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=ESOLAR${i + 1}", false);
 				xmlhttp.send(null);
-				document.getElementById("OffGrid${offGridName}SOLARE${i}").innerHTML = xmlhttp.responseText + " W";
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}SOLARE${i}").innerHTML = xmlhttp.responseText + " W/h";
+
+			$if settings[offGridName]["SolarN"] > 0:
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=CSOLAR", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}SOLARCT").innerHTML = xmlhttp.responseText + " A";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=PSOLAR", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}SOLARPT").innerHTML = xmlhttp.responseText + " W";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=ESOLAR", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}SOLARET").innerHTML = xmlhttp.responseText + " W/h";
+
+			$for i in range(settings[offGridName]["SolarVN"]):
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=VPSOLAR${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}VSOLARP${i}").innerHTML = xmlhttp.responseText + " W";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=VESOLAR${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}VSOLARE${i}").innerHTML = xmlhttp.responseText + " W";
+
+			$if settings[offGridName]["SolarVN"] > 0:
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName}&SourceName=VSOLARPT", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}VSOLARPT").innerHTML = xmlhttp.responseText + " W";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=VSOLARET", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}VSOLARET").innerHTML = xmlhttp.responseText + " W/h";
+
+			$if settings[offGridName]["SolarVN"] > 0:
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=VSOLARPGT", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}VSOLARPGT").innerHTML = xmlhttp.responseText + " W";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=VSOLAREGT", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}VSOLAREGT").innerHTML = xmlhttp.responseText + " W/h";
+
+			$for i in range(settings[offGridName]["WindN"]):
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=VWIND${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}WINDV${i}").innerHTML = xmlhttp.responseText + " V";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=CWIND${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}WINDC${i}").innerHTML = xmlhttp.responseText + " A";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=PWIND${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName}WINDP${i}").innerHTML = xmlhttp.responseText + " W";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=EWIND${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}WINDE${i}").innerHTML = xmlhttp.responseText + " W/h";
+
+			$if settings[offGridName]["WindN"]:
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=CWIND", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}WINDCT").innerHTML = xmlhttp.responseText + " A";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=PWIND", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}WINDPT").innerHTML = xmlhttp.responseText + " W";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=EWIND", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}WINDET").innerHTML = xmlhttp.responseText + " W/h";
+
+			$for i in range(settings[offGridName]["WindVN"]):
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=VPWIND${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}VWINDP${i}").innerHTML = xmlhttp.responseText + " W";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=VEWIND${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}VWINDE${i}").innerHTML = xmlhttp.responseText + " W/h";
+
+			$if settings[offGridName]["WindVN"] > 0:
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName}&SourceName=VWINDPT", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}VWINDPT").innerHTML = xmlhttp.responseText + " W";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=VWINDET", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}VWINDET").innerHTML = xmlhttp.responseText + " W/h";
+
+			$if settings[offGridName]["WindVN"] > 0:
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=VWINDPGT", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}VWINDPGT").innerHTML = xmlhttp.responseText + " W";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=VWINDEGT", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}VWINDEGT").innerHTML = xmlhttp.responseText + " W/h";
+
+			$for i in range(settings[offGridName]["TotalGen"]):
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=VSOLAR${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}GENTOTALV${i}").innerHTML = xmlhttp.responseText + " V";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=CGENTOTAL${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}GENTOTALC${i}").innerHTML = xmlhttp.responseText + " A";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=PGENTOTAL${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName}GENTOTALP${i}").innerHTML = xmlhttp.responseText + " W";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=EGENTOTAL${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}GENTOTALE${i}").innerHTML = xmlhttp.responseText + " W/h";
+
+			$if settings[offGridName]["TotalGen"]:
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=CGENTOTAL", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}GENTOTALCT").innerHTML = xmlhttp.responseText + " A";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=PGENTOTAL", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}GENTOTALPT").innerHTML = xmlhttp.responseText + " W";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=EGENTOTAL", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}GENTOTALET").innerHTML = xmlhttp.responseText + " W/h";
+
+			$for i in range(settings[offGridName]["TotalConspN"]):
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=VCONSP${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}CONSPV${i}").innerHTML = xmlhttp.responseText + " V";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=CCONSP${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}CONSPC${i}").innerHTML = xmlhttp.responseText + " A";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=PCONSP${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName}CONSPP${i}").innerHTML = xmlhttp.responseText + " W";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=ECONSP${i + 1}", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}CONSPE${i}").innerHTML = xmlhttp.responseText + " W/h";
 	}
 
 	const tellTime = async function () {
@@ -65,28 +221,210 @@ $var page: energy_manager_home  <!--Edit: page name, used internally-->
 
 <div id="plugin">
     $for offGridName in settings:
-		${offGridName}
-		$if settings[offGridName]["SolarN"] > 0:
+		<div align="center" style="times new roman; font-weight:bold; font-size:40px;">
+			${offGridName.replace(" ", "")}
+		</div>
+
 		<br />
-		Solar Generation:
+		<div align="center" style="times new roman; font-weight:bold; font-size:20px;">
+			Sum Up :
+		</div>
 		<br />
 		<table style="width:100%" border="1">
 			<tr>
-				<th></th>
-				<th>Voltage</th>
-				<th>Current</th>
-				<th>Power</th>
-				<th>Energy</th>
+				<th>Production</th>
+				<th>Consuption</th>
+				<th>Battery</th>
 			</tr>
-			$for i in range(settings[offGridName]["SolarN"]):
-				<tr>
-					<td>Solar ${i}</td>
-					<td id="OffGrid${offGridName}SOLARV${i}"></td>
-					<td id="OffGrid${offGridName}SOLARC${i}"></td>
-					<td id="OffGrid${offGridName}SOLARP${i}">Mexico</td>
-					<td id="OffGrid${offGridName}SOLARE${i}">Mexico</td>
-				</tr>
+			<tr>
+				<td id="OffGrid${offGridName.replace(" ", " ")}PRODUCTION"></td>
+				<td id="OffGrid${offGridName.replace(" ", " ")}CONSUPTION"></td>
+				<td id="OffGrid${offGridName.replace(" ", " ")}BATTERY"></td>
+			</tr>
 		</table>
 
+		$if settings[offGridName]["SolarN"] > 0:
+			<br />
+			<div align="center" style="times new roman; font-weight:bold; font-size:20px;">
+				Solar Generation:
+			</div>
+			<br />
+			<table style="width:100%" border="1">
+				<tr>
+					<th></th>
+					<th>Voltage</th>
+					<th>Current</th>
+					<th>Power</th>
+					<th>Energy</th>
+				</tr>
+				$for i in range(settings[offGridName]["SolarN"]):
+					<tr>
+						<td>Solar ${i}</td>
+						<td id="OffGrid${offGridName.replace(" ", "")}SOLARV${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", "")}SOLARC${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", "")}SOLARP${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", "")}SOLARE${i}"></td>
+					</tr>
+				<tr>
+					<td>Solar Total</td>
+					<td></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}SOLARCT"></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}SOLARPT"></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}SOLARET"></td>
+				</tr>
+			</table>
+
+		$if settings[offGridName]["SolarVN"] > 0:
+			<br />
+			<div align="center" style="times new roman; font-weight:bold; font-size:20px;">
+				Solar Generation Virtual:
+			</div>
+			<br />
+			<table style="width:100%" border="1">
+				<tr>
+					<th></th>
+					<th>Power</th>
+					<th>Energy</th>
+				</tr>
+				$for i in range(settings[offGridName]["SolarVN"]):
+					<tr>
+						<td>Solar Virtual ${i}</td>
+						<td id="OffGrid${offGridName.replace(" ", "")}VSOLARP${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", "")}VSOLARE${i}"></td>
+					</tr>
+				<tr>
+					<td>Total</td>
+					<td id="OffGrid${offGridName.replace(" ", "")}VSOLARPT"></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}VSOLARET"></td>
+				</tr>
+				<tr>
+					<td>Grand Total</td>
+					<td id="OffGrid${offGridName.replace(" ", " ")}VSOLARPGT"></td>
+					<td id="OffGrid${offGridName.replace(" ", " ")}VSOLAREGT"></td>
+				</tr>
+			</table>
+
+		$if settings[offGridName]["WindN"] > 0:
+			<br />
+			<div align="center" style="times new roman; font-weight:bold; font-size:20px;">
+				Wind Generation:
+			</div>
+			<br />
+			<table style="width:100%" border="1">
+				<tr>
+					<th></th>
+					<th>Voltage</th>
+					<th>Current</th>
+					<th>Power</th>
+					<th>Energy</th>
+				</tr>
+				$for i in range(settings[offGridName]["WindN"]):
+					<tr>
+						<td>Solar ${i}</td>
+						<td id="OffGrid${offGridName.replace(" ", "")}WINDV${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", "")}WINDC${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", "")}WINDP${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", "")}WINDE${i}"></td>
+					</tr>
+				<tr>
+					<td>Wind Total</td>
+					<td></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}WINDCT"></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}WINDPT"></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}WINDET"></td>
+				</tr>
+			</table>
+
+		$if settings[offGridName]["WindVN"] > 0:
+			<br />
+			<div align="center" style="times new roman; font-weight:bold; font-size:20px;">
+				Wind Generation Virtual:
+			</div>
+			<br />
+			<table style="width:100%" border="1">
+				<tr>
+					<th></th>
+					<th>Power</th>
+					<th>Energy</th>
+				</tr>
+				$for i in range(settings[offGridName]["WindVN"]):
+					<tr>
+						<td>Wind Virtual ${i}</td>
+						<td id="OffGrid${offGridName.replace(" ", " ")}VWINDP${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", " ")}VWINDE${i}"></td>
+					</tr>
+				<tr>
+					<td>Total</td>
+					<td id="OffGrid${offGridName.replace(" ", " ")}VWINDPT"></td>
+					<td id="OffGrid${offGridName.replace(" ", " ")}VWINDET"></td>
+				</tr>
+				<tr>
+					<td>Grand Total</td>
+					<td id="OffGrid${offGridName.replace(" ", " ")}VWINDPGT"></td>
+					<td id="OffGrid${offGridName.replace(" ", " ")}VWINDEGT"></td>
+				</tr>
+			</table>
+
+		$if settings[offGridName]["TotalGen"] > 0:
+			<br />
+			<div align="center" style="times new roman; font-weight:bold; font-size:20px;">
+				Total Generation:
+			</div>
+			<br />
+			<table style="width:100%" border="1">
+				<tr>
+					<th></th>
+					<th>Voltage</th>
+					<th>Current</th>
+					<th>Power</th>
+					<th>Energy</th>
+				</tr>
+				$for i in range(settings[offGridName]["TotalGen"]):
+					<tr>
+						<td>Solar ${i}</td>
+						<td id="OffGrid${offGridName.replace(" ", " ")}GENTOTALV${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", " ")}GENTOTALC${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", " ")}GENTOTALP${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", " ")}GENTOTALE${i}"></td>
+					</tr>
+				<tr>
+					<td>Total of total generation</td>
+					<td></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}GENTOTALCT"></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}GENTOTALPT"></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}GENTOTALET"></td>
+				</tr>
+			</table>
+
+		$if settings[offGridName]["TotalConspN"] > 0:
+			<br />
+			<div align="center" style="times new roman; font-weight:bold; font-size:20px;">
+				Total Consuption:
+			</div>
+			<br />
+			<table style="width:100%" border="1">
+				<tr>
+					<th></th>
+					<th>Voltage</th>
+					<th>Current</th>
+					<th>Power</th>
+					<th>Energy</th>
+				</tr>
+				$for i in range(settings[offGridName]["TotalConspN"]):
+					<tr>
+						<td>Solar ${i}</td>
+						<td id="OffGrid${offGridName.replace(" ", " ")}CONSPV${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", " ")}CONSPC${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", " ")}CONSPP${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", " ")}CONSPE${i}"></td>
+					</tr>
+				<tr>
+					<td>Total of total generation</td>
+					<td></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}CONSPCT"></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}CONSPPT"></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}CONSPET"></td>
+				</tr>
+			</table>
     <br /><br />
 </div>

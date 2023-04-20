@@ -1140,32 +1140,191 @@ class offgrid_ged_current_val(ProtectedPage):
         dataOut = ""
 
         if "OffGridRef" in qdict and "SourceName" in qdict:
+            # variables associated to solar
+            totalSolarC = 0
+            totalSolarP = 0
+            totalSolarE = 0
+
+            # variables associated to wind
+            totalWindC = 0
+            totalWindE = 0
+            totalWindP = 0
+
+            # variables associated to total generation
+            totalCTGen = 0
+            totalPTGen = 0
+            totalETGen = 0
+
+            # variables associated to consuption
+            totalCConsp = 0
+            totalPConsp = 0
+            totalEConsp = 0
+
             lockOffGridStationsDef.acquire()
             offGridDateOnDemandLock.acquire()
 
             if qdict["OffGridRef"] in offGridDateOnDemand:
                 if qdict["SourceName"] in offGridDateOnDemand[qdict["OffGridRef"]]:
                     dataOut = str(round(offGridDateOnDemand[qdict["OffGridRef"]][qdict["SourceName"]], 2))
-                elif qdict["SourceName"] == "PSOLAR":
-                    totalSolarP = 0
+                if qdict["SourceName"] == "CSOLAR":
+                    for i in range(offGridStationsDef[qdict["OffGridRef"]]["SolarN"]):
+                        totalSolarC = totalSolarC + offGridDateOnDemand[qdict["OffGridRef"]]["CSOLAR"+ str(i + 1)]
+                    dataOut = str(round(totalSolarC, 2))
+                if qdict["SourceName"] == "PSOLAR" or qdict["SourceName"] == "PPRODUCTION" or qdict["SourceName"] == "PCONSUPTION" or qdict["SourceName"] == "PBATTERY":
                     for i in range(offGridStationsDef[qdict["OffGridRef"]]["SolarN"]):
                         totalSolarP = totalSolarP + offGridDateOnDemand[qdict["OffGridRef"]]["PSOLAR"+ str(i + 1)]
                     dataOut = str(round(totalSolarP, 2))
-                elif qdict["SourceName"] == "PWIND":
-                    totalWindP = 0
+                if qdict["SourceName"] == "ESOLAR":
+                    for i in range(offGridStationsDef[qdict["OffGridRef"]]["SolarN"]):
+                        totalSolarE = totalSolarE + offGridDateOnDemand[qdict["OffGridRef"]]["ESOLAR"+ str(i + 1)]
+                    dataOut = str(round(totalSolarE, 2))
+                if qdict["SourceName"] == "CWIND":
+                    for i in range(offGridStationsDef[qdict["OffGridRef"]]["WindN"]):
+                        totalWindC = totalWindC + offGridDateOnDemand[qdict["OffGridRef"]]["CWIND"+ str(i + 1)]
+                    dataOut = str(round(totalWindC, 2))
+                if qdict["SourceName"] == "EWIND":
+                    for i in range(offGridStationsDef[qdict["OffGridRef"]]["WindN"]):
+                        totalWindE = totalWindE + offGridDateOnDemand[qdict["OffGridRef"]]["EWIND"+ str(i + 1)]
+                    dataOut = str(round(totalWindE, 2))
+                if qdict["SourceName"] == "PWIND" or qdict["SourceName"] == "PPRODUCTION" or qdict["SourceName"] == "PCONSUPTION" or qdict["SourceName"] == "PBATTERY":
                     for i in range(offGridStationsDef[qdict["OffGridRef"]]["WindN"]):
                         totalWindP = totalWindP + offGridDateOnDemand[qdict["OffGridRef"]]["PWIND"+ str(i + 1)]
                     dataOut = str(round(totalWindP, 2))
-                elif qdict["SourceName"] == "PGENTOTAL":
-                    totalPTGen = 0
+                if qdict["SourceName"] == "CGENTOTAL":
+                    for i in range(offGridStationsDef[qdict["OffGridRef"]]["TotalGen"]):
+                        totalCTGen = totalCTGen + offGridDateOnDemand[qdict["OffGridRef"]]["CGENTOTAL"+ str(i + 1)]
+                    dataOut = str(round(totalCTGen, 2))
+                if qdict["SourceName"] == "PGENTOTAL":
                     for i in range(offGridStationsDef[qdict["OffGridRef"]]["TotalGen"]):
                         totalPTGen = totalPTGen + offGridDateOnDemand[qdict["OffGridRef"]]["PGENTOTAL"+ str(i + 1)]
                     dataOut = str(round(totalPTGen, 2))
-                elif qdict["SourceName"] == "PCONSP":
-                    totalPConsp = 0
+                if qdict["SourceName"] == "EGENTOTAL":
+                    for i in range(offGridStationsDef[qdict["OffGridRef"]]["TotalGen"]):
+                        totalETGen = totalETGen + offGridDateOnDemand[qdict["OffGridRef"]]["EGENTOTAL"+ str(i + 1)]
+                    dataOut = str(round(totalETGen, 2))
+                if qdict["SourceName"] == "CCONSP":
+                    for i in range(offGridStationsDef[qdict["OffGridRef"]]["TotalConspN"]):
+                        totalCConsp = totalCConsp + offGridDateOnDemand[qdict["OffGridRef"]]["CCONSP"+ str(i + 1)]
+                        dataOut = str(round(totalCConsp, 2))
+                if qdict["SourceName"] == "PCONSP" or qdict["SourceName"] == "PPRODUCTION" or qdict["SourceName"] == "PCONSUPTION" or qdict["SourceName"] == "PBATTERY":
                     for i in range(offGridStationsDef[qdict["OffGridRef"]]["TotalConspN"]):
                         totalPConsp = totalPConsp + offGridDateOnDemand[qdict["OffGridRef"]]["PCONSP"+ str(i + 1)]
                         dataOut = str(round(totalPConsp, 2))
+                if qdict["SourceName"] == "ECONSP":
+                    for i in range(offGridStationsDef[qdict["OffGridRef"]]["TotalConspN"]):
+                        totalEConsp = totalEConsp + offGridDateOnDemand[qdict["OffGridRef"]]["ECONSP"+ str(i + 1)]
+                        dataOut = str(round(totalEConsp, 2))
+
+                # check virtual solar
+                solarPVirtual = 0
+                solarPValid = False
+
+                solarEVirtual = 0
+                solarEValid = False
+
+                for i in range(offGridStationsDef[qdict["OffGridRef"]]["SolarVN"]):
+                    if qdict["SourceName"] == "VPSOLAR"+ str(i + 1) or qdict["SourceName"] == "VSOLARPT" or qdict["SourceName"] == "VSOLARPGT" or qdict["SourceName"] == "PPRODUCTION" or qdict["SourceName"] == "PCONSUPTION" or qdict["SourceName"] == "PBATTERY":
+                        solarPValid = True
+
+                        # Total generation sensors
+                        for k in range(len(offGridStationsDef[qdict["OffGridRef"]]["SolarVNGenTotalId"][i])):
+                            idxGenTotal = offGridStationsDef[qdict["OffGridRef"]]["SolarVNGenTotalId"][i][k]
+                            solarPVirtual = solarPVirtual + offGridDateOnDemand[qdict["OffGridRef"]]["PGENTOTAL"+ str(idxGenTotal + 1)]
+
+                        # Other solar sensor
+                        for k in range(len(offGridStationsDef[qdict["OffGridRef"]]["SolarVNGenSolarId"][i])):
+                            idxGenTotal = offGridStationsDef[qdict["OffGridRef"]]["SolarVNGenSolarId"][i][k]
+                            solarPVirtual = solarPVirtual - offGridDateOnDemand[qdict["OffGridRef"]]["PSOLAR"+ str(idxGenTotal + 1)]
+
+                        # Other wind sensor
+                        for k in range(len(offGridStationsDef[qdict["OffGridRef"]]["SolarVNGenWindId"][i])):
+                            idxGenTotal = offGridStationsDef[qdict["OffGridRef"]]["SolarVNGenWindId"][i][k]
+                            solarPVirtual = solarPVirtual - offGridDateOnDemand[qdict["OffGridRef"]]["PWIND"+ str(idxGenTotal + 1)]
+
+                        dataOut = str(round(solarPVirtual, 2))
+                    if qdict["SourceName"] == "VESOLAR"+ str(i + 1)  or qdict["SourceName"] == "VSOLARET" or qdict["SourceName"] == "VSOLAREGT" or qdict["SourceName"] == "PPRODUCTION" or qdict["SourceName"] == "PCONSUPTION" or qdict["SourceName"] == "PBATTERY":
+                        solarEValid = True
+                        
+                        # Total generation sensors
+                        for k in range(len(offGridStationsDef[qdict["OffGridRef"]]["SolarVNGenTotalId"][i])):
+                            idxGenTotal = offGridStationsDef[qdict["OffGridRef"]]["SolarVNGenTotalId"][i][k]
+                            solarEVirtual = solarEVirtual + offGridDateOnDemand[qdict["OffGridRef"]]["EGENTOTAL"+ str(idxGenTotal + 1)]
+
+                        # Other solar sensor
+                        for k in range(len(offGridStationsDef[qdict["OffGridRef"]]["SolarVNGenSolarId"][i])):
+                            idxGenTotal = offGridStationsDef[qdict["OffGridRef"]]["SolarVNGenSolarId"][i][k]
+                            solarEVirtual = solarEVirtual - offGridDateOnDemand[qdict["OffGridRef"]]["ESOLAR"+ str(idxGenTotal + 1)]
+
+                        # Other wind sensor
+                        for k in range(len(offGridStationsDef[qdict["OffGridRef"]]["SolarVNGenWindId"][i])):
+                            idxGenTotal = offGridStationsDef[qdict["OffGridRef"]]["SolarVNGenWindId"][i][k]
+                            solarEVirtual = solarEVirtual - offGridDateOnDemand[qdict["OffGridRef"]]["EWIND"+ str(idxGenTotal + 1)]
+
+                if solarPValid:
+                    dataOut = str(round(solarPVirtual, 2))
+
+                if solarEValid:
+                    dataOut = str(round(solarEVirtual, 2))
+
+                # check virtual wind
+                windPVirtual = 0
+                windPValid = False
+
+                windEVirtual = 0
+                windEValid = False
+
+                for i in range(offGridStationsDef[qdict["OffGridRef"]]["WindVN"]):
+                    if qdict["SourceName"] == "VPWIND"+ str(i + 1) or qdict["SourceName"] == "VWINDPT" or qdict["SourceName"] == "VWINDPGT" or qdict["SourceName"] == "PPRODUCTION" or qdict["SourceName"] == "PCONSUPTION" or qdict["SourceName"] == "PBATTERY":
+                        windPValid = True
+
+                        # Total generation sensors
+                        for k in range(len(offGridStationsDef[qdict["OffGridRef"]]["WindVNGenTotalId"][i])):
+                            idxGenTotal = offGridStationsDef[qdict["OffGridRef"]]["WindVNGenTotalId"][i][k]
+                            windPVirtual = windPVirtual + offGridDateOnDemand[qdict["OffGridRef"]]["PGENTOTAL"+ str(idxGenTotal + 1)]
+
+                        # Other wind sensor
+                        for k in range(len(offGridStationsDef[qdict["OffGridRef"]]["WindVNGenSolarId"][i])):
+                            idxGenTotal = offGridStationsDef[qdict["OffGridRef"]]["WindVNGenSolarId"][i][k]
+                            windPVirtual = windPVirtual - offGridDateOnDemand[qdict["OffGridRef"]]["PSOLAR"+ str(idxGenTotal + 1)]
+
+                        # Other wind sensor
+                        for k in range(len(offGridStationsDef[qdict["OffGridRef"]]["WindVNGenWindId"][i])):
+                            idxGenTotal = offGridStationsDef[qdict["OffGridRef"]]["WindVNGenWindId"][i][k]
+                            windPVirtual = windPVirtual - offGridDateOnDemand[qdict["OffGridRef"]]["PWIND"+ str(idxGenTotal + 1)]
+
+                        dataOut = str(round(windPVirtual, 2))
+                    if qdict["SourceName"] == "VEWIND"+ str(i + 1) or qdict["SourceName"] == "VWINDET" or qdict["SourceName"] == "VWINDEGT" or qdict["SourceName"] == "PPRODUCTION" or qdict["SourceName"] == "PCONSUPTION" or qdict["SourceName"] == "PBATTERY":
+                        windEValid = True
+                        
+                        # Total generation sensors
+                        for k in range(len(offGridStationsDef[qdict["OffGridRef"]]["WindVNGenTotalId"][i])):
+                            idxGenTotal = offGridStationsDef[qdict["OffGridRef"]]["WindVNGenTotalId"][i][k]
+                            windEVirtual = windEVirtual + offGridDateOnDemand[qdict["OffGridRef"]]["EGENTOTAL"+ str(idxGenTotal + 1)]
+
+                        # Other solar sensor
+                        for k in range(len(offGridStationsDef[qdict["OffGridRef"]]["WindVNGenSolarId"][i])):
+                            idxGenTotal = offGridStationsDef[qdict["OffGridRef"]]["WindVNGenSolarId"][i][k]
+                            windEVirtual = windEVirtual - offGridDateOnDemand[qdict["OffGridRef"]]["ESOLAR"+ str(idxGenTotal + 1)]
+
+                        # Other wind sensor
+                        for k in range(len(offGridStationsDef[qdict["OffGridRef"]]["WindVNGenWindId"][i])):
+                            idxGenTotal = offGridStationsDef[qdict["OffGridRef"]]["WindVNGenWindId"][i][k]
+                            windEVirtual = windEVirtual - offGridDateOnDemand[qdict["OffGridRef"]]["EWIND"+ str(idxGenTotal + 1)]
+                
+                if windPValid:
+                    dataOut = str(round(windPVirtual, 2))
+
+                if windEValid:
+                    dataOut = str(round(windEVirtual, 2))
+
+                if qdict["SourceName"] == "PCONSUPTION":
+                    dataOut = str(round(totalPConsp, 2))
+                elif qdict["SourceName"] == "PPRODUCTION":
+                    dataOut = str(round(totalSolarP + solarPVirtual + totalWindP + windPVirtual, 2))
+                elif qdict["SourceName"] == "PBATTERY":
+                    dataOut = str(round(totalSolarP + solarPVirtual + totalWindP + windPVirtual - totalPConsp, 2))
+
+            # estimate 
 
             lockOffGridStationsDef.release()
             offGridDateOnDemandLock.release()
