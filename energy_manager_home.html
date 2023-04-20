@@ -212,7 +212,7 @@ $var page: energy_manager_home  <!--Edit: page name, used internally-->
 
 				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=ECONSP", false);
 				xmlhttp.send(null);
-				document.getElementById("OffGrid${offGridName.replace(" ", "")}ECONSPET").innerHTML = xmlhttp.responseText + " W/h";
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}CONSPET").innerHTML = xmlhttp.responseText + " W/h";
 	}
 
 	const tellTime = async function () {
@@ -436,7 +436,7 @@ $var page: energy_manager_home  <!--Edit: page name, used internally-->
 					<td></td>
 					<td id="OffGrid${offGridName.replace(" ", "")}CONSPCT"></td>
 					<td id="OffGrid${offGridName.replace(" ", "")}CONSPPT"></td>
-					<td id="OffGrid${offGridName.replace(" ", "")}ECONSPET"></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}CONSPET"></td>
 				</tr>
 			</table>
     <br /><br />
