@@ -1170,7 +1170,7 @@ class offgrid_ged_current_val(ProtectedPage):
                     for i in range(offGridStationsDef[qdict["OffGridRef"]]["SolarN"]):
                         totalSolarC = totalSolarC + offGridDateOnDemand[qdict["OffGridRef"]]["CSOLAR"+ str(i + 1)]
                     dataOut = str(round(totalSolarC, 2))
-                if qdict["SourceName"] == "PSOLAR" or qdict["SourceName"] == "PPRODUCTION" or qdict["SourceName"] == "PCONSUPTION" or qdict["SourceName"] == "PBATTERY":
+                if qdict["SourceName"] == "PSOLAR" or qdict["SourceName"] == "VSOLARPGT" or qdict["SourceName"] == "PPRODUCTION" or qdict["SourceName"] == "PCONSUPTION" or qdict["SourceName"] == "PBATTERY":
                     for i in range(offGridStationsDef[qdict["OffGridRef"]]["SolarN"]):
                         totalSolarP = totalSolarP + offGridDateOnDemand[qdict["OffGridRef"]]["PSOLAR"+ str(i + 1)]
                     dataOut = str(round(totalSolarP, 2))
@@ -1317,7 +1317,16 @@ class offgrid_ged_current_val(ProtectedPage):
                 if windEValid:
                     dataOut = str(round(windEVirtual, 2))
 
-                if qdict["SourceName"] == "PCONSUPTION":
+                # if result is a combination of results, need to do calculations
+                if qdict["SourceName"] == "VSOLARPGT":
+                    dataOut = str(round(totalSolarP + solarPVirtual, 2))
+                elif qdict["SourceName"] == "VSOLAREGT":
+                    dataOut = str(round(totalSolarE + solarEVirtual, 2))
+                elif qdict["SourceName"] == "VWINDPGT":
+                    dataOut = str(round(totalWindP + windPVirtual, 2))
+                elif qdict["SourceName"] == "VWINDEGT":
+                    dataOut = str(round(totalWindE + windEVirtual, 2))
+                elif qdict["SourceName"] == "PCONSUPTION":
                     dataOut = str(round(totalPConsp, 2))
                 elif qdict["SourceName"] == "PPRODUCTION":
                     dataOut = str(round(totalSolarP + solarPVirtual + totalWindP + windPVirtual, 2))

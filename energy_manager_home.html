@@ -200,6 +200,19 @@ $var page: energy_manager_home  <!--Edit: page name, used internally-->
 				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=ECONSP${i + 1}", false);
 				xmlhttp.send(null);
 				document.getElementById("OffGrid${offGridName.replace(" ", "")}CONSPE${i}").innerHTML = xmlhttp.responseText + " W/h";
+
+			$if settings[offGridName]["TotalConspN"]:
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=CCONSP", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}CONSPCT").innerHTML = xmlhttp.responseText + " A";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=PCONSP", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}CONSPPT").innerHTML = xmlhttp.responseText + " W";
+
+				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=ECONSP", false);
+				xmlhttp.send(null);
+				document.getElementById("OffGrid${offGridName.replace(" ", "")}ECONSPET").innerHTML = xmlhttp.responseText + " W/h";
 	}
 
 	const tellTime = async function () {
@@ -381,7 +394,7 @@ $var page: energy_manager_home  <!--Edit: page name, used internally-->
 				</tr>
 				$for i in range(settings[offGridName]["TotalGen"]):
 					<tr>
-						<td>Solar ${i}</td>
+						<td>Total generation ${i}</td>
 						<td id="OffGrid${offGridName.replace(" ", " ")}GENTOTALV${i}"></td>
 						<td id="OffGrid${offGridName.replace(" ", " ")}GENTOTALC${i}"></td>
 						<td id="OffGrid${offGridName.replace(" ", " ")}GENTOTALP${i}"></td>
@@ -412,7 +425,7 @@ $var page: energy_manager_home  <!--Edit: page name, used internally-->
 				</tr>
 				$for i in range(settings[offGridName]["TotalConspN"]):
 					<tr>
-						<td>Solar ${i}</td>
+						<td>Total Consuption ${i}</td>
 						<td id="OffGrid${offGridName.replace(" ", " ")}CONSPV${i}"></td>
 						<td id="OffGrid${offGridName.replace(" ", " ")}CONSPC${i}"></td>
 						<td id="OffGrid${offGridName.replace(" ", " ")}CONSPP${i}"></td>
@@ -423,7 +436,7 @@ $var page: energy_manager_home  <!--Edit: page name, used internally-->
 					<td></td>
 					<td id="OffGrid${offGridName.replace(" ", "")}CONSPCT"></td>
 					<td id="OffGrid${offGridName.replace(" ", "")}CONSPPT"></td>
-					<td id="OffGrid${offGridName.replace(" ", "")}CONSPET"></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}ECONSPET"></td>
 				</tr>
 			</table>
     <br /><br />
