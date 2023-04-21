@@ -5,7 +5,31 @@ $var page: energy_manager_off_grid_def  <!--Edit: page name, used internally-->
 
 <script>
     // Initialize behaviors
-    jQuery(document).ready(function () {
+	jQuery(document).ready(function () {
+		jQuery("button#Home").click(function () {
+			window.location = "/energy-manager-home";
+		});
+
+		jQuery("button#GridView").click(function () {
+			window.location = "/energy-manager-home-grid";
+		});
+
+		jQuery("button#GridDefinition").click(function () {
+			window.location = "/energy-manager-set";
+		});
+
+		jQuery("button#HomeOffGrid").click(function () {
+			window.location = "/energy-manager-offgrid-home";
+		});
+
+		jQuery("button#OffGridDefinitions").click(function () {
+			window.location = "/off-grid-location";
+		});
+
+		jQuery("button#EnergyPrice").click(function () {
+			window.location = "/energy-manager-price-definition";
+		});
+
         jQuery("#cSubmit").click(function () {
 			jQuery("#energy-manager-offgrid-set-save").submit();
         });
@@ -18,6 +42,15 @@ $var page: energy_manager_off_grid_def  <!--Edit: page name, used internally-->
 
 <div id="plugin">
 	<div>
+		<button class="execute" id="Home" type="button">Home</button>
+		<button class="execute" id="GridView" type="button">Grid View</button>
+		<button class="execute" id="GridDefinition" type="button">Grid Definitions</button>
+		<button class="execute" id="HomeOffGrid" type="button">Home Off-Grid</button>
+		<button class="execute" id="OffGridDefinitions" type="button">Off-Grid Definitions</button>
+		<button class="execute" id="EnergyPrice" type="button">Energy Price</button>
+
+		<br /><br />
+
 		<form id="energy-manager-offgrid-set-save" name="energy-manager-offgrid-set-save" action="./energy-manager-offgrid-set-save" method="get">
 			$if addNewStation > 0:
 				<a href="./off-grid-location">Cancel Add New</a><br /><br />

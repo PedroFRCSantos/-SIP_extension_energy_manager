@@ -68,3 +68,46 @@ def get_raw_reading_shelly_em(shellyIp, useSecure = False):
 def get_raw_reading_shelly_em3(shellyIp, useSecure = False):
     return get_raw_reading_shelly_em_generic(shellyIp, 3, useSecure)
 
+def get_meter_values(list2Read, repeatedReading):
+    # Net meter
+    totalPower = 0.0
+    totalEnergytAcc = 0.0
+    totalEnergyAccGen = 0.0
+
+    metterReading = []
+    for currMeter in list2Read:
+        if len(currMeter) == 2:
+            if currMeter[1] == 'shellyEM3':
+                if currMeter[0] in repeatedReading:
+                    newReading = repeatedReading[currMeter[0]]
+                    metterReading.append(newReading)
+                else:
+                    newReading = get_raw_reading_shelly_em3(currMeter[0])
+                    # TODO: Check when fail reading
+                    metterReading.append(newReading)
+                    repeatedReading[currMeter[0]] = newReading
+                totalPower = totalPower + sum(newReading['power'])
+                totalEnergytAcc = totalEnergytAcc + sum(newReading['accCons'])
+                totalEnergyAccGen = totalEnergyAccGen + sum(newReading['accSend'])
+            elif currMeter[1] == 'shellyEM_1' or currMeter[1] == 'shellyEM_2' or currMeter[1] == 'shellyEM3_1' or currMeter[1] == 'shellyEM3_2' or currMeter[1] == 'shellyEM3_3':
+                if currMeter[0] in repeatedReading:
+                    metterReading.append(repeatedReading[currMeter[0]])
+                else:
+                    newReading = get_raw_reading_shelly_em(currMeter[0])
+                    # TODO: Check when fail reading
+                    metterReading.append(newReading)
+                    repeatedReading[currMeter[0]] = newReading
+
+                idxClip = -1
+                if currMeter[1] == 'shellyEM_1' or currMeter[1] == 'shellyEM3_1':
+                    idxClip = 0
+                elif currMeter[1] == 'shellyEM_2' or currMeter[1] == 'shellyEM3_2':
+                    idxClip = 1
+                elif currMeter[1] == 'shellyEM3_3':
+                    idxClip = 2
+                if idxClip >= 0:
+                    totalPower = totalPower + newReading['power'][idxClip]
+                    totalEnergytAcc = totalEnergytAcc + newReading['accCons'][idxClip]
+                    totalEnergyAccGen = totalEnergyAccGen + newReading['accSend'][idxClip]
+
+    return totalPower, totalEnergytAcc, totalEnergyAccGen, metterReading

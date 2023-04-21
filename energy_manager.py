@@ -34,16 +34,19 @@ try:
 except ImportError:
     withDBLogger = False
 
-from energy_manager_aux import get_raw_reading_shelly_em3, get_raw_reading_shelly_em
+from energy_manager_aux import get_raw_reading_shelly_em3, get_raw_reading_shelly_em, get_meter_values
 
 # Add new URLs to access classes in this plugin.
 # fmt: off
 urls.extend([
+    u"/energy-manager-home", u"plugins.energy_manager.home",
     u"/energy-manager-set", u"plugins.energy_manager.settings",
     u"/energy-manager-set-save", u"plugins.energy_manager.save_settings",
+    u"/energy-manager-table-real-time", u"plugins.energy_manager.real_time_energy",
+    u"/energy-manager-home-grid", u"plugins.energy_manager.real_time_energy_home",
     u"/off-grid-location", u"plugins.energy_manager.off_grid_location",
     u"/energy-manager-offgrid-set-save", u"plugins.energy_manager.off_grid_save_sett",
-    u"/energy-manager-home", u"plugins.energy_manager.home",
+    u"/energy-manager-offgrid-home", u"plugins.energy_manager.home_offgrid",
     u"/energy-manager-subscribe-consuption", u"plugins.energy_manager.energy_equipment",
     u"/energy-manager-ask-consuption", u"plugins.energy_manager.energy_resquest_permition",
     u"/energy-manager-price-definition", u"plugins.energy_manager.energy_price_definition",
@@ -57,7 +60,7 @@ urls.extend([
 # fmt: on
 
 # Add this plugin to the PLUGINS menu ["Menu Name", "URL"], (Optional)
-gv.plugin_menu.append([_(u"Energy Plugin"), u"/energy-manager-set"])
+gv.plugin_menu.append([_(u"Energy Plugin"), u"/energy-manager-home"])
 gv.plugin_menu.sort()
 gv.plugin_menu = list(gv.plugin_menu for gv.plugin_menu,_ in itertools.groupby(gv.plugin_menu))
 
@@ -159,164 +162,16 @@ def mainThread(arg):
         repeatedReading = {}
 
         # Net meter
-        totalPowerMeter = 0.0
-        totalEnergytAccMeter = 0.0
-        totalEnergyAccGen = 0.0
-
-        netMetterReading = []
-        for currMeter in arg['netMeter']:
-            if len(currMeter) == 2:
-                if currMeter[1] == 'shellyEM3':
-                    if currMeter[0] in repeatedReading:
-                        newReading = repeatedReading[currMeter[0]]
-                        netMetterReading.append(newReading)
-                    else:
-                        newReading = get_raw_reading_shelly_em3(currMeter[0])
-                        # TODO: Check when fail reading
-                        netMetterReading.append(newReading)
-                        repeatedReading[currMeter[0]] = newReading
-                    totalPowerMeter = totalPowerMeter + sum(newReading['power'])
-                    totalEnergytAccMeter = totalEnergytAccMeter + sum(newReading['accCons'])
-                    totalEnergyAccGen = totalEnergyAccGen + sum(newReading['accSend'])
-                elif currMeter[1] == 'shellyEM_1' or currMeter[1] == 'shellyEM_2' or currMeter[1] == 'shellyEM3_1' or currMeter[1] == 'shellyEM3_2' or currMeter[1] == 'shellyEM3_3':
-                    if currMeter[0] in repeatedReading:
-                        netMetterReading.append(repeatedReading[currMeter[0]])
-                    else:
-                        newReading = get_raw_reading_shelly_em(currMeter[0])
-                        # TODO: Check when fail reading
-                        netMetterReading.append(newReading)
-                        repeatedReading[currMeter[0]] = newReading
-
-                    idxClip = -1
-                    if currMeter[1] == 'shellyEM_1' or currMeter[1] == 'shellyEM3_1':
-                        idxClip = 0
-                    elif currMeter[1] == 'shellyEM_2' or currMeter[1] == 'shellyEM3_2':
-                        idxClip = 1
-                    elif currMeter[1] == 'shellyEM3_3':
-                        idxClip = 2
-                    if idxClip >= 0:
-                        totalPowerMeter = totalPowerMeter + newReading['power'][idxClip]
-                        totalEnergytAccMeter = totalEnergytAccMeter + newReading['accCons'][idxClip]
-                        totalEnergyAccGen = totalEnergyAccGen + newReading['accSend'][idxClip]
+        totalPowerMeter, totalEnergytAccMeter, totalEnergyAccGen, netMetterReading = get_meter_values(arg['netMeter'], repeatedReading)
 
         # Solar meter
-        totalPowerSolar = 0.0
-        totalEnergySolar = 0.0
-        solarMetterReading = []
-
-        for currMeter in arg['solarMeter']:
-            if len(currMeter) == 2:
-                if currMeter[1] == 'shellyEM3':
-                    if currMeter[0] in repeatedReading:
-                        solarMetterReading.append(repeatedReading[currMeter[0]])
-                    else:
-                        newReading = get_raw_reading_shelly_em3(currMeter[0])
-                        # TODO: Check when fail reading
-                        solarMetterReading.append(newReading)
-                        repeatedReading[currMeter[0]] = newReading
-                    totalPowerGenerate = totalPowerGenerate + sum(newReading['power'])
-                    totalPowerSolar = totalPowerSolar + sum(newReading['power'])
-                    totalEnergySolar = totalEnergySolar + max(sum(newReading['accCons']), sum(newReading['accSend'])) # can be mounted any direction for generate
-                elif currMeter[1] == 'shellyEM_1' or currMeter[1] == 'shellyEM_2' or currMeter[1] == 'shellyEM3_1' or currMeter[1] == 'shellyEM3_2' or currMeter[1] == 'shellyEM3_3':
-                    if currMeter[0] in repeatedReading:
-                        newReading = repeatedReading[currMeter[0]]
-                        solarMetterReading.append(newReading)
-                    else:
-                        newReading = get_raw_reading_shelly_em(currMeter[0])
-                        solarMetterReading.append(newReading)
-                        repeatedReading[currMeter[0]] = newReading
-
-                    idxClip = -1
-                    if currMeter[1] == 'shellyEM_1' or currMeter[1] == 'shellyEM3_1':
-                        idxClip = 0
-                    elif currMeter[1] == 'shellyEM_2' or currMeter[1] == 'shellyEM3_2':
-                        idxClip = 1
-                    elif currMeter[1] == 'shellyEM3_3':
-                        idxClip = 2
-                    if idxClip >= 0:
-                        totalPowerGenerate = totalPowerGenerate + newReading['power'][idxClip]
-                        totalPowerSolar = totalPowerSolar + newReading['power'][idxClip]
-                        totalEnergySolar = totalEnergySolar + max(newReading['accCons'][idxClip], newReading['accSend'][idxClip])
+        totalPowerSolar, totalEnergySolar, dumpData, solarMetterReading = get_meter_values(arg['solarMeter'], repeatedReading)
 
         # Wind meter
-        totalPowerWind = 0.0
-        totalEnergyWind = 0.0
-        windMetterReading = []
-
-        for currMeter in arg['solarMeter']:
-            if len(currMeter) == 2:
-                if currMeter[1] == 'shellyEM3':
-                    if currMeter[0] in repeatedReading:
-                        newReading = repeatedReading[currMeter[0]]
-                        windMetterReading.append(newReading)
-                    else:
-                        newReading = get_raw_reading_shelly_em3(currMeter[0])
-                        # TODO: Check when fail reading
-                        windMetterReading.append(newReading)
-                        repeatedReading[currMeter[0]] = newReading
-                    totalPowerGenerate = totalPowerGenerate + sum(newReading['power'])
-                    totalPowerWind = totalPowerWind + sum(newReading['power'])
-                    totalEnergyWind = totalEnergyWind + max(sum(newReading['accCons']), sum(newReading['accSend'])) # can be mounted any direction for generate
-                elif currMeter[1] == 'shellyEM_1' or currMeter[1] == 'shellyEM_2' or currMeter[1] == 'shellyEM3_1' or currMeter[1] == 'shellyEM3_2' or currMeter[1] == 'shellyEM3_3':
-                    if currMeter[0] in repeatedReading:
-                        windMetterReading.append(repeatedReading[currMeter[0]])
-                    else:
-                        newReading = get_raw_reading_shelly_em(currMeter[0])
-                        # TODO: Check when fail reading
-                        windMetterReading.append(newReading)
-                        repeatedReading[currMeter[0]] = newReading
-
-                    idxClip = -1
-                    if currMeter[1] == 'shellyEM_1' or currMeter[1] == 'shellyEM3_1':
-                        idxClip = 0
-                    elif currMeter[1] == 'shellyEM_2' or currMeter[1] == 'shellyEM3_2':
-                        idxClip = 1
-                    elif currMeter[1] == 'shellyEM3_3':
-                        idxClip = 2
-                    if idxClip >= 0:
-                        totalPowerGenerate = totalPowerGenerate + newReading['power'][idxClip]
-                        totalPowerWind = totalPowerWind + newReading['power'][idxClip]
-                        totalEnergyWind = totalEnergyWind + max(newReading['accCons'][idxClip], newReading['accSend'][idxClip])
-
+        totalPowerWind, totalEnergyWind, dumpData, windMetterReading = get_meter_values(arg['windMeter'], repeatedReading)
+        
         # Other meter
-        totalPowerOther = 0
-        totalEnergyOther = 0
-        otherMetterReading = []
-
-        for currMeter in arg['otherSrcMeter']:
-            if len(currMeter) == 2:
-                if currMeter[1] == 'shellyEM3':
-                    if currMeter[0] in repeatedReading:
-                        newReading = repeatedReading[currMeter[0]]
-                        otherMetterReading.append(newReading)
-                    else:
-                        newReading = get_raw_reading_shelly_em3(currMeter[0])
-                        # TODO: Check when fail reading
-                        otherMetterReading.append(newReading)
-                        repeatedReading[currMeter[0]] = newReading
-                    totalPowerGenerate = totalPowerGenerate + sum(newReading['power'])
-                    totalPowerOther = totalPowerOther + sum(newReading['power'])
-                    totalEnergyOther = totalEnergyOther + max(sum(newReading['accCons']), sum(newReading['accSend'])) # can be mounted any direction for generate
-                elif currMeter[1] == 'shellyEM_1' or currMeter[1] == 'shellyEM_2' or currMeter[1] == 'shellyEM3_1' or currMeter[1] == 'shellyEM3_2' or currMeter[1] == 'shellyEM3_3':
-                    if currMeter[0] in repeatedReading:
-                        otherMetterReading.append(repeatedReading[currMeter[0]])
-                    else:
-                        newReading = get_raw_reading_shelly_em(currMeter[0])
-                        # TODO: Check when fail reading
-                        otherMetterReading.append(newReading)
-                        repeatedReading[currMeter[0]] = newReading
-
-                    idxClip = -1
-                    if currMeter[1] == 'shellyEM_1' or currMeter[1] == 'shellyEM3_1':
-                        idxClip = 0
-                    elif currMeter[1] == 'shellyEM_2' or currMeter[1] == 'shellyEM3_2':
-                        idxClip = 1
-                    elif currMeter[1] == 'shellyEM3_3':
-                        idxClip = 2
-                    if idxClip >= 0:
-                        totalPowerGenerate = totalPowerGenerate + newReading['power'][idxClip]
-                        totalPowerOther = totalPowerOther + newReading['power'][idxClip]
-                        totalEnergyOther = totalEnergyOther + max(newReading['accCons'][idxClip], newReading['accSend'][idxClip])
+        totalPowerOther, totalEnergyOther, dumpData, otherMetterReading = get_meter_values(arg['otherSrcMeter'], repeatedReading)
 
         # Total power meter should be negative if have excedent of energy
         # totalPowerConsuption = totalPowerGenerate + totalPowerMeter
@@ -587,6 +442,57 @@ class settings(ProtectedPage):
             settingsEnergyManagerLocal = {}  # TODO, fill with default data
         return template_render.energy_manager(settingsEnergyManagerLocal, withDBLogger)  # open settings page
 
+class real_time_energy(ProtectedPage):
+    def GET(self):
+        repeatedReading = {}
+
+        #settingsEnergyManager
+        # Net meter
+        totalPowerMeter, totalEnergytAccMeter, totalEnergyAccGen, netMetterReading = get_meter_values(settingsEnergyManager['netMeter'], repeatedReading)
+
+        # Solar meter
+        totalPowerSolar, totalEnergySolar, dumpData, solarMetterReading = get_meter_values(settingsEnergyManager['solarMeter'], repeatedReading)
+
+        # Wind meter
+        totalPowerWind, totalEnergyWind, dumpData, windMetterReading = get_meter_values(settingsEnergyManager['windMeter'], repeatedReading)
+        
+        # Other meter
+        totalPowerOther, totalEnergyOther, dumpData, otherMetterReading = get_meter_values(settingsEnergyManager['otherSrcMeter'], repeatedReading)
+
+        dataOut = '<table style="width:100%" border="1">'
+
+        dataOut = dataOut +'<tr>'
+        if len(settingsEnergyManager['netMeter']) > 0:
+            dataOut = dataOut +'<th>Net Meter</th>'
+        if len(settingsEnergyManager['solarMeter']) > 0:
+            dataOut = dataOut +'<th>Solar Meter</th>'
+        if len(settingsEnergyManager['windMeter']) > 0:
+            dataOut = dataOut +'<th>Wind Meter</th>'
+        if len(settingsEnergyManager['otherSrcMeter']) > 0:
+            dataOut = dataOut +'<th>Other Meter</th>'
+        dataOut = dataOut +'</tr>'
+
+        dataOut = dataOut +'<tr>'
+        if len(settingsEnergyManager['netMeter']) > 0:
+            dataOut = dataOut +'<td>'+ str(round(totalPowerMeter/1000.0, 3)) +' kW</td>'
+        if len(settingsEnergyManager['solarMeter']) > 0:
+            dataOut = dataOut +'<td>'+ str(round(totalPowerSolar/1000.0, 3)) +' kW</td>'
+        if len(settingsEnergyManager['windMeter']) > 0:
+            dataOut = dataOut +'<td>'+ str(round(totalPowerWind/1000.0, 3)) +' kW</td>'
+        if len(settingsEnergyManager['otherSrcMeter']) > 0:
+            dataOut = dataOut +'<td>'+ str(round(totalPowerOther/1000.0, 3)) +' kW</td>'
+        dataOut = dataOut +'</tr>'
+
+        dataOut = dataOut + '</table>'
+
+        return dataOut
+
+class real_time_energy_home(ProtectedPage):
+    def GET(self):
+        tmpData = {}
+
+        return template_render.energy_manager_home_grid(tmpData)
+
 class save_settings(ProtectedPage):
     def GET(self):
         qdict = web.input()
@@ -706,6 +612,14 @@ class save_settings(ProtectedPage):
         else:
             raise web.seeother(u"/energy-manager-set")  # Return to definition pannel
 
+class home(ProtectedPage):
+    """
+    Load an html page for entering plugin settings.
+    """
+
+    def GET(self):
+        return template_render.energy_manager_home(None)  # open settings page
+
 class off_grid_location(ProtectedPage):
     """
     Load an html page off-grid settings
@@ -806,7 +720,7 @@ class off_grid_save_sett(ProtectedPage):
 
         raise web.seeother(u"/off-grid-location")
 
-class home(ProtectedPage):
+class home_offgrid(ProtectedPage):
     """
     Load an html page for entering plugin settings.
     """
@@ -818,7 +732,7 @@ class home(ProtectedPage):
         tmpDataOffGrid = copy.deepcopy(offGridStationsDef)
         lockOffGridStationsDef.release()
 
-        return template_render.energy_manager_home(tmpDataOffGrid)  # open settings page
+        return template_render.energy_manager_home_off_grid(tmpDataOffGrid)  # open settings page
 
 class energy_equipment(ProtectedPage):
     """

@@ -1,0 +1,80 @@
+$def with(defData)
+<!-- Edit: Replace "proto_vals" with settings values for your plugin if used-->
+$var title: $_(u'Home for Energy extention') <!--Edit: Title to show on browser tab-->
+$var page: energy_manager_home_grid  <!--Edit: page name, used internally-->
+
+<script>
+	jQuery(document).ready(function () {
+		jQuery("button#Home").click(function () {
+			window.location = "/energy-manager-home";
+		});
+
+		jQuery("button#GridView").click(function () {
+			window.location = "/energy-manager-home-grid";
+		});
+
+		jQuery("button#GridDefinition").click(function () {
+			window.location = "/energy-manager-set";
+		});
+
+		jQuery("button#HomeOffGrid").click(function () {
+			window.location = "/energy-manager-offgrid-home";
+		});
+
+		jQuery("button#OffGridDefinitions").click(function () {
+			window.location = "/off-grid-location";
+		});
+
+		jQuery("button#EnergyPrice").click(function () {
+			window.location = "/energy-manager-price-definition";
+		});
+	});
+
+	function getXHR() {
+		if (window.XMLHttpRequest) { // code for IE7+, Firefox, Chrome, Opera, Safari
+			return new XMLHttpRequest();
+		}
+		else { // code for IE6, IE5
+			return new ActiveXObject("Microsoft.XMLHTTP");
+		}
+	}
+
+	function updateEnergyStatus() {
+		var xmlhttp = getXHR();
+
+		xmlhttp.open("GET", "/energy-manager-table-real-time", false);
+		xmlhttp.send(null);
+		document.getElementById("TableDisplay").innerHTML = xmlhttp.responseText;
+	}
+
+	const tellTime = async function () {
+		updateEnergyStatus();
+	}
+
+	const minutes = 0.05;
+	const interval = minutes * 60 * 1000;
+
+	setInterval(function () {
+		// catch all the errors.
+		tellTime().catch(console.log);
+	}, interval);
+
+	document.addEventListener('DOMContentLoaded', function () {
+		updateEnergyStatus();
+	}, false);
+</script>
+
+<div id="plugin">
+	<button class="execute" id="Home" type="button">Home</button>
+	<button class="execute" id="GridView" type="button">Grid View</button>
+	<button class="execute" id="GridDefinition" type="button">Grid Definitions</button>
+	<button class="execute" id="HomeOffGrid" type="button">Home Off-Grid</button>
+	<button class="execute" id="OffGridDefinitions" type="button">Off-Grid Definitions</button>
+	<button class="execute" id="EnergyPrice" type="button">Energy Price</button>
+
+	<br /><br />
+	<div id="TableDisplay">
+	</div>
+
+	<br /><br />
+</div>

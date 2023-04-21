@@ -6,6 +6,30 @@ $var page: energy_manager_prices  <!--Edit: page name, used internally-->
 <script>
 	// Initialize behaviors
 	jQuery(document).ready(function () {
+		jQuery("button#Home").click(function () {
+			window.location = "/energy-manager-home";
+		});
+
+		jQuery("button#GridView").click(function () {
+			window.location = "/energy-manager-home-grid";
+		});
+
+		jQuery("button#GridDefinition").click(function () {
+			window.location = "/energy-manager-set";
+		});
+
+		jQuery("button#HomeOffGrid").click(function () {
+			window.location = "/energy-manager-offgrid-home";
+		});
+
+		jQuery("button#OffGridDefinitions").click(function () {
+			window.location = "/off-grid-location";
+		});
+
+		jQuery("button#EnergyPrice").click(function () {
+			window.location = "/energy-manager-price-definition";
+		});
+
 		jQuery("button#cSubmit").click(function () {
 			jQuery("#energy-manager-price-definition-save").submit();
 		});
@@ -13,6 +37,14 @@ $var page: energy_manager_prices  <!--Edit: page name, used internally-->
 </script>
 
 <div id="plugin">
+	<button class="execute" id="Home" type="button">Home</button>
+	<button class="execute" id="GridView" type="button">Grid View</button>
+	<button class="execute" id="GridDefinition" type="button">Grid Definitions</button>
+	<button class="execute" id="HomeOffGrid" type="button">Home Off-Grid</button>
+	<button class="execute" id="OffGridDefinitions" type="button">Off-Grid Definitions</button>
+	<button class="execute" id="EnergyPrice" type="button">Energy Price</button>
+
+	<br /><br />
 	<div>
 		$if "energyEntryPrice" in definitionPricesEnergy:
 			<table border="1">
