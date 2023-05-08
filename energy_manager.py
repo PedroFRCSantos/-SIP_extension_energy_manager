@@ -15,7 +15,6 @@ from datetime import timedelta
 import itertools
 import copy
 from datetime import datetime,timezone
-import math
 import queue
 
 # local module imports
@@ -34,7 +33,7 @@ try:
 except ImportError:
     withDBLogger = False
 
-from energy_manager_aux import get_raw_reading_shelly_em3, get_raw_reading_shelly_em, get_meter_values
+from energy_manager_aux import get_meter_values, sunpos, sendLocalHTTPRequest
 
 # Add new URLs to access classes in this plugin.
 # fmt: off
@@ -47,7 +46,7 @@ urls.extend([
     u"/off-grid-location", u"plugins.energy_manager.off_grid_location",
     u"/energy-manager-offgrid-set-save", u"plugins.energy_manager.off_grid_save_sett",
     u"/energy-manager-offgrid-home", u"plugins.energy_manager.home_offgrid",
-    u"/energy-manager-subscribe-consuption", u"plugins.energy_manager.energy_equipment",
+    u"/energy-manager-add-know-consuption", u"plugins.energy_manager.energy_equipment",
     u"/energy-manager-ask-consuption", u"plugins.energy_manager.energy_resquest_permition",
     u"/energy-manager-price-definition", u"plugins.energy_manager.energy_price_definition",
     u"/energy-manager-price-definition-save", u"plugins.energy_manager.save_settings_energy_price",
@@ -88,8 +87,11 @@ mutexPrices = Lock()
 listDeviceKnowConsp = {}
 mutexDeviceKnowConsp = Lock()
 
-listSubscriptionGetEnergy = {}
+listSubscriptionGetEnergy = []
 mutexSubscriptionGetEnergy = Lock()
+
+threadGivePermition2WorkDevices = None
+threadGivePermition2WorkDevicesIsRunning = True
 
 def energy_generate_default_array():
     defualtValue = {'timeInterValReg': 5, 'timeInterCharge': 15, 'netMeter': [], 'solarMeter': [], 'windMeter': [], 'otherSrcMeter': []}
@@ -162,19 +164,25 @@ def mainThread(arg):
         repeatedReading = {}
 
         # Net meter
-        totalPowerMeter, totalEnergytAccMeter, totalEnergyAccGen, netMetterReading = get_meter_values(arg['netMeter'], repeatedReading)
+        totalPowerMeter, totalEnergytAccMeter, totalEnergyAccGen, netMetterReading, validReadingMeter = get_meter_values(arg['netMeter'], repeatedReading)
 
         # Solar meter
-        totalPowerSolar, totalEnergySolar, dumpData, solarMetterReading = get_meter_values(arg['solarMeter'], repeatedReading)
+        totalPowerSolar, totalEnergySolar, dumpData, solarMetterReading, validReadingSolar = get_meter_values(arg['solarMeter'], repeatedReading)
 
         # Wind meter
-        totalPowerWind, totalEnergyWind, dumpData, windMetterReading = get_meter_values(arg['windMeter'], repeatedReading)
+        totalPowerWind, totalEnergyWind, dumpData, windMetterReading, validReadingWind = get_meter_values(arg['windMeter'], repeatedReading)
         
         # Other meter
-        totalPowerOther, totalEnergyOther, dumpData, otherMetterReading = get_meter_values(arg['otherSrcMeter'], repeatedReading)
+        totalPowerOther, totalEnergyOther, dumpData, otherMetterReading, validReadingOther = get_meter_values(arg['otherSrcMeter'], repeatedReading)
 
         # Total power meter should be negative if have excedent of energy
         # totalPowerConsuption = totalPowerGenerate + totalPowerMeter
+
+        # if fail get any value not save, avoid reading
+        if not validReadingMeter and not validReadingSolar and not validReadingWind and not validReadingOther:
+            # check if need to send e-mail or telegram to aler user from error
+            # TODO
+            continue
 
         curentDate = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -205,11 +213,11 @@ def mainThread(arg):
                     else:
                         listElements = {"EnergyManagerTime" : "datetime", "EnergyManagerPower0" : "double", "EnergyManagerPF0" : "double", "EnergyManagerCurrent0" : "double", "EnergyManagerVoltage0" : "double", "EnergyManagerIsValid0" : "boolean", "EnergyManagerTotal0" : "double", "EnergyManagerTotalRet0" : "double"}
                         idxClip = -1
-                        if currMeter[1] == 'shellyEM_1' or currMeter[1] == 'shellyEM3_1':
+                        if arg[meterName][i][1] == 'shellyEM_1' or arg[meterName][i][1] == 'shellyEM3_1':
                             idxClip = 0
-                        elif currMeter[1] == 'shellyEM_2' or currMeter[1] == 'shellyEM3_2':
+                        elif arg[meterName][i][1] == 'shellyEM_2' or arg[meterName][i][1] == 'shellyEM3_2':
                             idxClip = 1
-                        elif currMeter[1] == 'shellyEM3_3':
+                        elif arg[meterName][i][1] == 'shellyEM3_3':
                             idxClip = 2
                         if idxClip >= 0:
                             if meterName == 'netMeter':
@@ -266,13 +274,98 @@ def mainThread(arg):
 
 def updatePriceAndAvailabilityEnergy(arg):
     global isMainTreadRun
+
+    # TODO: estimate prices, next iteration
+
     while isMainTreadRun:
         sleep(5)
 
-def checkDevicesWaitingForEnergy():
-    global isMainTreadRun
+def checkDevicesWaitingForEnergyOrStop():
+    global isMainTreadRun, mutexSubscriptionGetEnergy, listSubscriptionGetEnergy
+
+    numberOfLastRequests = 0
+    needNewRequest = False
+
+    counterFullCheck = 60
+
+    totalEnergytAccMeterLastVal = None
+    totalEnergyAccGenLastVal = None
+    lastTimeReading = None
+
+    repeatedReading = {}
+    totalPowerMeter, totalEnergytAccMeterLastVal, totalEnergyAccGenLastVal, netMetterReading, validReading = get_meter_values(settingsEnergyManager['netMeter'], repeatedReading)
+    if not validReading:
+        totalEnergytAccMeterLastVal = None
+        totalEnergyAccGenLastVal = None
+    else:
+        lastTimeReading = datetime.now()
+
     while isMainTreadRun:
-        sleep(5)
+        sleep(1)
+
+        # check if any energy to check
+        mutexSubscriptionGetEnergy.acquire()
+
+        if len(listSubscriptionGetEnergy) > 0:
+            if numberOfLastRequests != len(listSubscriptionGetEnergy):
+                needNewRequest = True
+            else:
+                needNewRequest = False
+        mutexSubscriptionGetEnergy.release()
+
+        if lastTimeReading != None and (datetime.now() - lastTimeReading).total_seconds() / 60.0 > settingsEnergyManager['timeInterCharge']:
+            # check energy available to start
+            repeatedReading = {}
+            totalPowerMeter, totalEnergytAccMeter, totalEnergyAccGen, netMetterReading, validReading = get_meter_values(settingsEnergyManager['netMeter'], repeatedReading)
+            energyConsp = totalEnergytAccMeter - totalEnergytAccMeterLastVal
+            energySend = totalEnergyAccGen - totalEnergyAccGenLastVal
+
+            energyEfective = energySend - energyConsp
+
+            list2SendPermition2Work = []
+
+            if validReading and energyEfective > 0:
+                powerAvailableMean = (energySend / ((datetime.now() - lastTimeReading).total_seconds() / 60.0 / 60.0)) / 1000.0
+                
+                # check if any subcription can be activated
+                mutexSubscriptionGetEnergy.acquire()
+
+                for currentSubcription in listSubscriptionGetEnergy:
+                    if True:#currentSubcription["EnergyPower"] * 1.2 < powerAvailableMean and not currentSubcription["IsOn"]:
+                        # add 2 list of devices to start working
+                        list2SendPermition2Work.append(copy.deepcopy(currentSubcription))
+
+                mutexSubscriptionGetEnergy.release()
+
+            # save last values
+            if not validReading:
+                totalEnergytAccMeterLastVal = None
+                totalEnergyAccGenLastVal = None
+            else:
+                totalEnergytAccMeterLastVal = totalEnergytAccMeter
+                totalEnergyAccGenLastVal = totalEnergyAccGen
+
+                lastTimeReading = datetime.now()
+
+            # send back to devices
+            for value2Send in list2SendPermition2Work:
+                argumentTank = "?DeviceRef="+ value2Send["DeviceRef"] +"&DevicePermition=on"
+                sendLocalHTTPRequest(value2Send["LinkConn"], argumentTank)
+
+            # remove permition given if to off
+            # TODO
+
+        counterFullCheck = counterFullCheck - 1
+        if counterFullCheck < 0 or needNewRequest:
+            counterFullCheck = 60
+            
+            #totalPowerMeter, totalEnergytAccMeter, totalEnergyAccGen, netMetterReading = get_meter_values(settingsEnergyManager['netMeter'], repeatedReading)
+
+            # get meter definitions
+            time2Charge = settingsEnergyManager['timeInterCharge']
+
+            # if have perion of charge
+            # TODO
 
 def processOffGridData():
     global threadOfGridProcessIsRunning, commandsOffGridQueu, offGridStationsDef, lockOffGridStationsDef
@@ -402,6 +495,13 @@ def load_commands_energy():
         offGridStationsDef = {}
     lockOffGridStationsDef.release()
 
+    if withDBLogger:
+        dbDefinitions = db_logger_read_definitions()
+
+        # create table with charge
+        listElements = {"EnergyEquimentOnoffRef" : "varchar(200)", "EnergyEquimentOnoffState" : "bool", "EnergyEquimentOnoffDateTime" : "datetime", "EnergyEquimentOnoffPower" : "double", "EnergyEquimentOnoffDutyCycle" : "double"}
+        create_generic_table("energy_equiment_onoff", listElements, dbDefinitions)
+
     # Launch threads
     isMainTreadRun = True
 
@@ -413,6 +513,9 @@ def load_commands_energy():
 
     threadOfGridProcessData = Thread(target = processOffGridData)
     threadOfGridProcessData.start()
+
+    threadGivePermition2WorkDevices = Thread(target = checkDevicesWaitingForEnergyOrStop)
+    threadGivePermition2WorkDevices.start()
 
 def stopMainTread():
     global isMainTreadRun, threadMain, threadPrices
@@ -448,42 +551,45 @@ class real_time_energy(ProtectedPage):
 
         #settingsEnergyManager
         # Net meter
-        totalPowerMeter, totalEnergytAccMeter, totalEnergyAccGen, netMetterReading = get_meter_values(settingsEnergyManager['netMeter'], repeatedReading)
+        totalPowerMeter, totalEnergytAccMeter, totalEnergyAccGen, netMetterReading, isValidMeter = get_meter_values(settingsEnergyManager['netMeter'], repeatedReading)
 
         # Solar meter
-        totalPowerSolar, totalEnergySolar, dumpData, solarMetterReading = get_meter_values(settingsEnergyManager['solarMeter'], repeatedReading)
+        totalPowerSolar, totalEnergySolar, dumpData, solarMetterReading, isValidSolar = get_meter_values(settingsEnergyManager['solarMeter'], repeatedReading)
 
         # Wind meter
-        totalPowerWind, totalEnergyWind, dumpData, windMetterReading = get_meter_values(settingsEnergyManager['windMeter'], repeatedReading)
+        totalPowerWind, totalEnergyWind, dumpData, windMetterReading, isValidWind = get_meter_values(settingsEnergyManager['windMeter'], repeatedReading)
         
         # Other meter
-        totalPowerOther, totalEnergyOther, dumpData, otherMetterReading = get_meter_values(settingsEnergyManager['otherSrcMeter'], repeatedReading)
+        totalPowerOther, totalEnergyOther, dumpData, otherMetterReading, isValidOther = get_meter_values(settingsEnergyManager['otherSrcMeter'], repeatedReading)
 
-        dataOut = '<table style="width:100%" border="1">'
+        if isValidMeter and isValidSolar and isValidWind and isValidOther:
+            dataOut = '<table style="width:100%" border="1">'
 
-        dataOut = dataOut +'<tr>'
-        if len(settingsEnergyManager['netMeter']) > 0:
-            dataOut = dataOut +'<th>Net Meter</th>'
-        if len(settingsEnergyManager['solarMeter']) > 0:
-            dataOut = dataOut +'<th>Solar Meter</th>'
-        if len(settingsEnergyManager['windMeter']) > 0:
-            dataOut = dataOut +'<th>Wind Meter</th>'
-        if len(settingsEnergyManager['otherSrcMeter']) > 0:
-            dataOut = dataOut +'<th>Other Meter</th>'
-        dataOut = dataOut +'</tr>'
+            dataOut = dataOut +'<tr>'
+            if len(settingsEnergyManager['netMeter']) > 0:
+                dataOut = dataOut +'<th>Net Meter</th>'
+            if len(settingsEnergyManager['solarMeter']) > 0:
+                dataOut = dataOut +'<th>Solar Meter</th>'
+            if len(settingsEnergyManager['windMeter']) > 0:
+                dataOut = dataOut +'<th>Wind Meter</th>'
+            if len(settingsEnergyManager['otherSrcMeter']) > 0:
+                dataOut = dataOut +'<th>Other Meter</th>'
+            dataOut = dataOut +'</tr>'
 
-        dataOut = dataOut +'<tr>'
-        if len(settingsEnergyManager['netMeter']) > 0:
-            dataOut = dataOut +'<td>'+ str(round(totalPowerMeter/1000.0, 3)) +' kW</td>'
-        if len(settingsEnergyManager['solarMeter']) > 0:
-            dataOut = dataOut +'<td>'+ str(round(totalPowerSolar/1000.0, 3)) +' kW</td>'
-        if len(settingsEnergyManager['windMeter']) > 0:
-            dataOut = dataOut +'<td>'+ str(round(totalPowerWind/1000.0, 3)) +' kW</td>'
-        if len(settingsEnergyManager['otherSrcMeter']) > 0:
-            dataOut = dataOut +'<td>'+ str(round(totalPowerOther/1000.0, 3)) +' kW</td>'
-        dataOut = dataOut +'</tr>'
+            dataOut = dataOut +'<tr>'
+            if len(settingsEnergyManager['netMeter']) > 0:
+                dataOut = dataOut +'<td>'+ str(round(totalPowerMeter/1000.0, 3)) +' kW</td>'
+            if len(settingsEnergyManager['solarMeter']) > 0:
+                dataOut = dataOut +'<td>'+ str(round(totalPowerSolar/1000.0, 3)) +' kW</td>'
+            if len(settingsEnergyManager['windMeter']) > 0:
+                dataOut = dataOut +'<td>'+ str(round(totalPowerWind/1000.0, 3)) +' kW</td>'
+            if len(settingsEnergyManager['otherSrcMeter']) > 0:
+                dataOut = dataOut +'<td>'+ str(round(totalPowerOther/1000.0, 3)) +' kW</td>'
+            dataOut = dataOut +'</tr>'
 
-        dataOut = dataOut + '</table>'
+            dataOut = dataOut + '</table>'
+        else:
+            dataOut = "No data, fail to get device reading"
 
         return dataOut
 
@@ -748,13 +854,23 @@ class energy_equipment(ProtectedPage):
             newState = qdict["NewState"] == 'on'
             powerDevice = qdict["PowerDevice"]
 
+            # TODO: mandatory working
+            mandatoryWorking = "MandatoryWork" in qdict
+
             currentKey = extentionName +":"+ deviceRef
 
             mutexDeviceKnowConsp.acquire()
-            listDeviceKnowConsp[currentKey] = {}
-            listDeviceKnowConsp[currentKey]["NewState"] = newState
-            listDeviceKnowConsp[currentKey]["PowerDevice"] = powerDevice
+            if qdict["NewState"] == 'on':
+                # add to list
+                listDeviceKnowConsp[currentKey] = {}
+                listDeviceKnowConsp[currentKey]["NewState"] = newState
+                listDeviceKnowConsp[currentKey]["PowerDevice"] = powerDevice
+                listDeviceKnowConsp[currentKey]["MandatoryWork"] = mandatoryWorking
+            else:
+                del listDeviceKnowConsp[currentKey]
             mutexDeviceKnowConsp.release()
+
+            # TODO: save to data-base
 
 class energy_resquest_permition(ProtectedPage):
     """
@@ -762,9 +878,11 @@ class energy_resquest_permition(ProtectedPage):
     """
 
     def GET(self):
+        global listSubscriptionGetEnergy, mutexSubscriptionGetEnergy
+
         qdict = web.input()
 
-        if "ExtentionName" in qdict and "DeviceRef" in qdict and "LinkConn" in qdict and "MinWorkingTime" and "ExpectedWorkingTime" in qdict and "EnergyPower" in qdict:
+        if "ExtentionName" in qdict and "DeviceRef" in qdict and "LinkConn" in qdict and "MinWorkingTime" in qdict and "ExpectedWorkingTime" in qdict and "EnergyPower" in qdict:
             ententionName = qdict["ExtentionName"]
             deviceRef = qdict["DeviceRef"]
             linkConn = qdict["LinkConn"]
@@ -786,22 +904,44 @@ class energy_resquest_permition(ProtectedPage):
                     hoursCanWait = int(qdict["HoursCanWait"])
                 except ValueError:
                     hoursCanWait = 0
-            mutexSubscriptionGetEnergy.acquire()
-            currentKey = ententionName + ":" + deviceRef
 
-            listSubscriptionGetEnergy[currentKey] = {}
-            listSubscriptionGetEnergy[currentKey]["ExtentionName"] = ententionName
-            listSubscriptionGetEnergy[currentKey]["DeviceRef"] = deviceRef
-            listSubscriptionGetEnergy[currentKey]["LinkConn"] = linkConn
-            listSubscriptionGetEnergy[currentKey]["MinWorkingTime"] = minWorkingTime
-            listSubscriptionGetEnergy[currentKey]["EnergyPower"] = energyPower
-            listSubscriptionGetEnergy[currentKey]["ExpectedWorkingTime"] = expectedWorkingTime
-            listSubscriptionGetEnergy[currentKey]["AvoidIrrigationProgram"] = avoidIrrigationProgram
-            listSubscriptionGetEnergy[currentKey]["HoursCanWait"] = hoursCanWait
+            priority = 3 # 3 - non priority, 2 - middle priority, 1 - higth priority; by default is 3
+            if "Priority" in qdict:
+                try:
+                    # try converting to integer
+                    priority = int(qdict["Priority"])
+                except ValueError:
+                    priority = 3
+                if priority != 3 and priority != 2 and priority != 1:
+                    priority = 3
+
+            mutexSubscriptionGetEnergy.acquire()
+            listSubscriptionGetEnergyNew = {}
+            listSubscriptionGetEnergyNew["ExtentionName"] = ententionName
+            listSubscriptionGetEnergyNew["DeviceRef"] = deviceRef
+            listSubscriptionGetEnergyNew["LinkConn"] = linkConn
+            listSubscriptionGetEnergyNew["MinWorkingTime"] = minWorkingTime
+            listSubscriptionGetEnergyNew["EnergyPower"] = energyPower
+            listSubscriptionGetEnergyNew["ExpectedWorkingTime"] = expectedWorkingTime
+            listSubscriptionGetEnergyNew["AvoidIrrigationProgram"] = avoidIrrigationProgram
+            listSubscriptionGetEnergyNew["HoursCanWait"] = hoursCanWait
+            listSubscriptionGetEnergyNew["Priority"] = priority
+
+            listSubscriptionGetEnergyNew["IsOn"] = False # indicate if device is working or not
+
+            listSubscriptionGetEnergy.append(listSubscriptionGetEnergyNew)
             mutexSubscriptionGetEnergy.release()
 
             return "WAIT"
             #retrun "OK" # energy is available, device can run now
+        elif "ExtentionName" in qdict and "DeviceRef" in qdict and "RemovePermition" in qdict:
+            id2Delete = -1
+            for i in range(len(listSubscriptionGetEnergy)):
+                if listSubscriptionGetEnergy[i]["ExtentionName"] == qdict["ExtentionName"] and listSubscriptionGetEnergy[i]["DeviceRef"] == qdict["DeviceRef"]:
+                    id2Delete = i
+
+            if id2Delete >= 0:
+                del listSubscriptionGetEnergy[id2Delete]
 
         # inform error
         return "NOK"
@@ -953,69 +1093,6 @@ class offgrid_sensor(ProtectedPage):
         commandsOffGridQueu.put(qdict)
 
         return "||Ok offgrid"
-
-def sunpos(when, location, refraction):
-# Extract the passed data
-    year, month, day, hour, minute, second, timezone = when
-    latitude, longitude = location
-# Math typing shortcuts
-    rad, deg = math.radians, math.degrees
-    sin, cos, tan = math.sin, math.cos, math.tan
-    asin, atan2 = math.asin, math.atan2
-# Convert latitude and longitude to radians
-    rlat = rad(latitude)
-    rlon = rad(longitude)
-# Decimal hour of the day at Greenwich
-    greenwichtime = hour - timezone + minute / 60 + second / 3600
-# Days from J2000, accurate from 1901 to 2099
-    daynum = (
-        367 * year
-        - 7 * (year + (month + 9) // 12) // 4
-        + 275 * month // 9
-        + day
-        - 730531.5
-        + greenwichtime / 24
-    )
-# Mean longitude of the sun
-    mean_long = daynum * 0.01720279239 + 4.894967873
-# Mean anomaly of the Sun
-    mean_anom = daynum * 0.01720197034 + 6.240040768
-# Ecliptic longitude of the sun
-    eclip_long = (
-        mean_long
-        + 0.03342305518 * sin(mean_anom)
-        + 0.0003490658504 * sin(2 * mean_anom)
-    )
-# Obliquity of the ecliptic
-    obliquity = 0.4090877234 - 0.000000006981317008 * daynum
-# Right ascension of the sun
-    rasc = atan2(cos(obliquity) * sin(eclip_long), cos(eclip_long))
-# Declination of the sun
-    decl = asin(sin(obliquity) * sin(eclip_long))
-# Local sidereal time
-    sidereal = 4.894961213 + 6.300388099 * daynum + rlon
-# Hour angle of the sun
-    hour_ang = sidereal - rasc
-# Local elevation of the sun
-    elevation = asin(sin(decl) * sin(rlat) + cos(decl) * cos(rlat) * cos(hour_ang))
-# Local azimuth of the sun
-    azimuth = atan2(
-        -cos(decl) * cos(rlat) * sin(hour_ang),
-        sin(decl) - sin(rlat) * sin(elevation),
-    )
-# Convert azimuth and elevation to degrees
-    azimuth = into_range(deg(azimuth), 0, 360)
-    elevation = into_range(deg(elevation), -180, 180)
-# Refraction correction (optional)
-    if refraction:
-        targ = rad((elevation + (10.3 / (elevation + 5.11))))
-        elevation += (1.02 / tan(targ)) / 60
-# Return azimuth and elevation in degrees
-    return (round(azimuth, 2), round(elevation, 2))
-def into_range(x, range_min, range_max):
-    shiftedx = x - range_min
-    delta = range_max - range_min
-    return (((shiftedx % delta) + delta) % delta) + range_min
 
 class offgrid_day_night(ProtectedPage):
     def GET(self):
