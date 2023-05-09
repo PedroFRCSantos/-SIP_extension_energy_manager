@@ -3,6 +3,9 @@ import requests
 from urllib.request import urlopen
 import json
 import math
+import time
+
+from calendar import timegm
 
 import gv  # Get access to SIP's settings, gv = global variables
 
@@ -198,4 +201,41 @@ def into_range(x, range_min, range_max):
     shiftedx = x - range_min
     delta = range_max - range_min
     return (((shiftedx % delta) + delta) % delta) + range_min
+
+def prog_match_time_running(prog, lt):
+    """
+    Test a program for current date and time match.
+    """
+    if not prog[u"enabled"]:
+        return 0  # Skip if program is not enabled
+    devday = int(timegm(lt) // 86400)  # Check day match
+
+    if prog[u"type"] == u"interval":
+        if (devday % prog[u"interval_base_day"]) != prog[u"day_mask"]:
+            return 0
+    else:  # Weekday program
+        if not prog[u"day_mask"] - 128 & 1 << lt.tm_wday:
+            return 0
+        if prog[u"type"] == u"evendays":
+            if lt.tm_mday % 2 != 0:
+                return 0
+        if prog[u"type"] == u"odddays":
+            if lt.tm_mday == 31 or ((lt.tm_mon == 2 and lt.tm_mday == 29)):
+                return 0
+            elif lt.tm_mday % 2 != 1:
+                return 0     
+    this_minute = (lt.tm_hour * 60) + lt.tm_min  # Check time match
+    if this_minute < prog[u"start_min"] or this_minute >= prog[u"stop_min"]:
+        return 0
+    if prog[u"cycle_min"] == 0:
+        return 1  # Program matched
+    elif (
+        prog[u"cycle_min"] != 0
+        and (this_minute - prog[u"start_min"])
+        // prog[u"cycle_min"]
+        * prog[u"cycle_min"]
+        == this_minute - prog[u"start_min"]
+    ):
+        return 1  # Program matched
+    return 0
 

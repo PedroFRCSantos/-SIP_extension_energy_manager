@@ -12,6 +12,7 @@ from time import sleep
 import os
 from datetime import datetime
 from datetime import timedelta
+import time
 import itertools
 import copy
 from datetime import datetime,timezone
@@ -33,7 +34,7 @@ try:
 except ImportError:
     withDBLogger = False
 
-from energy_manager_aux import get_meter_values, sunpos, sendLocalHTTPRequest
+from energy_manager_aux import get_meter_values, sunpos, sendLocalHTTPRequest, prog_match_time_running
 
 # Add new URLs to access classes in this plugin.
 # fmt: off
@@ -303,6 +304,10 @@ def checkDevicesWaitingForEnergyOrStop():
     while isMainTreadRun:
         sleep(1)
 
+        #for i, p in enumerate(gv.pd):  # get both index and prog item
+        #    if prog_match_time_running(p, time.localtime()) and any(p[u"duration_sec"]):
+        #        print("Runing program"+ str(i+1))
+
         # check if any energy to check
         mutexSubscriptionGetEnergy.acquire()
 
@@ -313,7 +318,7 @@ def checkDevicesWaitingForEnergyOrStop():
                 needNewRequest = False
         mutexSubscriptionGetEnergy.release()
 
-        if lastTimeReading != None and (datetime.now() - lastTimeReading).total_seconds() / 60.0 > settingsEnergyManager['timeInterCharge']:
+        if lastTimeReading != None and (datetime.now() - lastTimeReading).total_seconds() / 60.0 > 2.0:#settingsEnergyManager['timeInterCharge']:
             # check energy available to start
             repeatedReading = {}
             totalPowerMeter, totalEnergytAccMeter, totalEnergyAccGen, netMetterReading, validReading = get_meter_values(settingsEnergyManager['netMeter'], repeatedReading)
@@ -324,14 +329,24 @@ def checkDevicesWaitingForEnergyOrStop():
 
             list2SendPermition2Work = []
 
-            if validReading and energyEfective > 0:
+            if True:#validReading and energyEfective > 0:
                 powerAvailableMean = (energySend / ((datetime.now() - lastTimeReading).total_seconds() / 60.0 / 60.0)) / 1000.0
                 
                 # check if any subcription can be activated
                 mutexSubscriptionGetEnergy.acquire()
 
                 for currentSubcription in listSubscriptionGetEnergy:
-                    if True:#currentSubcription["EnergyPower"] * 1.2 < powerAvailableMean and not currentSubcription["IsOn"]:
+                    # check if minum running time don´t have any program
+                    currentLocalTime = time.localtime()
+                    anyProgramRunning = False
+                    if currentSubcription["AvoidIrrigationProgram"]:
+                        for i in range(int(currentSubcription["MinWorkingTime"] * 60.0) + 1):
+                            futureTime = time.localtime(time.mktime(currentLocalTime) + i * 60)
+                            for i, p in enumerate(gv.pd):
+                                if prog_match_time_running(p, futureTime) and any(p[u"duration_sec"]):
+                                    anyProgramRunning = True
+
+                    if not anyProgramRunning:# and currentSubcription["EnergyPower"] * 1.2 < powerAvailableMean and not currentSubcription["IsOn"]:
                         # add 2 list of devices to start working
                         list2SendPermition2Work.append(copy.deepcopy(currentSubcription))
 
@@ -353,7 +368,7 @@ def checkDevicesWaitingForEnergyOrStop():
                 sendLocalHTTPRequest(value2Send["LinkConn"], argumentTank)
 
             # remove permition given if to off
-            # TODO
+            # TODO, check if any program start next minute
 
         counterFullCheck = counterFullCheck - 1
         if counterFullCheck < 0 or needNewRequest:
