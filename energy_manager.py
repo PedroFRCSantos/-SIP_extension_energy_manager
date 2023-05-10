@@ -863,11 +863,14 @@ class energy_equipment(ProtectedPage):
     def GET(self):
         qdict = web.input()
 
-        if "ExtentionName" in qdict and "DeviceRef" in qdict and "NewState" in qdict and "PowerDevice" in qdict and (qdict["NewState"] == 'on' or qdict["NewState"] == 'off'):
+        if "ExtentionName" in qdict and "DeviceRef" in qdict and "NewState" in qdict and "UrlStop" in qdict and "PowerDevice" in qdict and "TurnOffMinDateTime" in qdict and (qdict["NewState"] == 'on' or qdict["NewState"] == 'off'):
             extentionName = qdict["ExtentionName"]
             deviceRef = qdict["DeviceRef"]
             newState = qdict["NewState"] == 'on'
             powerDevice = qdict["PowerDevice"]
+
+            urlStop = qdict["UrlStop"]
+            powerOffMinDateTime = qdict["TurnOffMinDateTime"]
 
             # TODO: mandatory working
             mandatoryWorking = "MandatoryWork" in qdict
@@ -881,6 +884,9 @@ class energy_equipment(ProtectedPage):
                 listDeviceKnowConsp[currentKey]["NewState"] = newState
                 listDeviceKnowConsp[currentKey]["PowerDevice"] = powerDevice
                 listDeviceKnowConsp[currentKey]["MandatoryWork"] = mandatoryWorking
+
+                listDeviceKnowConsp[currentKey]["UrlStop"] = urlStop
+                listDeviceKnowConsp[currentKey]["TurnOffMinDateTime"] = powerOffMinDateTime
             else:
                 del listDeviceKnowConsp[currentKey]
             mutexDeviceKnowConsp.release()
@@ -942,7 +948,7 @@ class energy_resquest_permition(ProtectedPage):
             listSubscriptionGetEnergyNew["HoursCanWait"] = hoursCanWait
             listSubscriptionGetEnergyNew["Priority"] = priority
 
-            listSubscriptionGetEnergyNew["IsOn"] = False # indicate if device is working or not
+            listSubscriptionGetEnergyNew["IsOn"] = False # indicate if device is working or not, on request by default off, only start with energy permition
 
             listSubscriptionGetEnergy.append(listSubscriptionGetEnergyNew)
             mutexSubscriptionGetEnergy.release()
