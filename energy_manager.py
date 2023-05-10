@@ -282,7 +282,7 @@ def updatePriceAndAvailabilityEnergy(arg):
         sleep(5)
 
 def checkDevicesWaitingForEnergyOrStop():
-    global isMainTreadRun, mutexSubscriptionGetEnergy, listSubscriptionGetEnergy
+    global isMainTreadRun, mutexSubscriptionGetEnergy, listSubscriptionGetEnergy, mutexDeviceKnowConsp, listDeviceKnowConsp
 
     numberOfLastRequests = 0
     needNewRequest = False
@@ -293,6 +293,8 @@ def checkDevicesWaitingForEnergyOrStop():
     totalEnergyAccGenLastVal = None
     lastTimeReading = None
 
+    lastTimeCheckOff = None
+
     repeatedReading = {}
     totalPowerMeter, totalEnergytAccMeterLastVal, totalEnergyAccGenLastVal, netMetterReading, validReading = get_meter_values(settingsEnergyManager['netMeter'], repeatedReading)
     if not validReading:
@@ -300,6 +302,7 @@ def checkDevicesWaitingForEnergyOrStop():
         totalEnergyAccGenLastVal = None
     else:
         lastTimeReading = datetime.now()
+        lastTimeCheckOff = copy.deepcopy(lastTimeReading)
 
     while isMainTreadRun:
         sleep(1)
@@ -318,7 +321,9 @@ def checkDevicesWaitingForEnergyOrStop():
                 needNewRequest = False
         mutexSubscriptionGetEnergy.release()
 
-        if lastTimeReading != None and (datetime.now() - lastTimeReading).total_seconds() / 60.0 > 2.0:#settingsEnergyManager['timeInterCharge']:
+        currentDate = datetime.now()
+
+        if lastTimeReading != None:
             # check energy available to start
             repeatedReading = {}
             totalPowerMeter, totalEnergytAccMeter, totalEnergyAccGen, netMetterReading, validReading = get_meter_values(settingsEnergyManager['netMeter'], repeatedReading)
@@ -327,60 +332,69 @@ def checkDevicesWaitingForEnergyOrStop():
 
             energyEfective = energySend - energyConsp
 
-            list2SendPermition2Work = []
+            if (currentDate - lastTimeReading).total_seconds() / 60.0 > 2.0:#settingsEnergyManager['timeInterCharge']:
+                list2SendPermition2Work = []
 
-            if True:#validReading and energyEfective > 0:
-                powerAvailableMean = (energySend / ((datetime.now() - lastTimeReading).total_seconds() / 60.0 / 60.0)) / 1000.0
+                if True:#validReading and energyEfective > 0:
+                    powerAvailableMean = (energySend / ((datetime.now() - lastTimeReading).total_seconds() / 60.0 / 60.0)) / 1000.0
                 
-                # check if any subcription can be activated
-                mutexSubscriptionGetEnergy.acquire()
+                    # check if any subcription can be activated
+                    mutexSubscriptionGetEnergy.acquire()
 
-                for currentSubcription in listSubscriptionGetEnergy:
-                    # check if minum running time don´t have any program
-                    currentLocalTime = time.localtime()
-                    anyProgramRunning = False
-                    if currentSubcription["AvoidIrrigationProgram"]:
-                        for i in range(int(currentSubcription["MinWorkingTime"] * 60.0) + 1):
-                            futureTime = time.localtime(time.mktime(currentLocalTime) + i * 60)
-                            for i, p in enumerate(gv.pd):
-                                if prog_match_time_running(p, futureTime) and any(p[u"duration_sec"]):
-                                    anyProgramRunning = True
+                    for currentSubcription in listSubscriptionGetEnergy:
+                        # check if minum running time don´t have any program
+                        currentLocalTime = time.localtime()
+                        anyProgramRunning = False
+                        if currentSubcription["AvoidIrrigationProgram"]:
+                            for i in range(int(currentSubcription["MinWorkingTime"] * 60.0) + 1):
+                                futureTime = time.localtime(time.mktime(currentLocalTime) + i * 60)
+                                for i, p in enumerate(gv.pd):
+                                    if prog_match_time_running(p, futureTime) and any(p[u"duration_sec"]):
+                                        anyProgramRunning = True
 
-                    if not anyProgramRunning:# and currentSubcription["EnergyPower"] * 1.2 < powerAvailableMean and not currentSubcription["IsOn"]:
-                        # add 2 list of devices to start working
-                        list2SendPermition2Work.append(copy.deepcopy(currentSubcription))
+                        if not anyProgramRunning:# and currentSubcription["EnergyPower"] * 1.2 < powerAvailableMean and not currentSubcription["IsOn"]:
+                            # add 2 list of devices to start working
+                            list2SendPermition2Work.append(copy.deepcopy(currentSubcription))
+                            listSubscriptionGetEnergy.remove(currentSubcription) # remove permition request
+                    mutexSubscriptionGetEnergy.release()
 
-                mutexSubscriptionGetEnergy.release()
+                # save last values
+                if not validReading:
+                    totalEnergytAccMeterLastVal = None
+                    totalEnergyAccGenLastVal = None
+                else:
+                    totalEnergytAccMeterLastVal = totalEnergytAccMeter
+                    totalEnergyAccGenLastVal = totalEnergyAccGen
 
-            # save last values
-            if not validReading:
-                totalEnergytAccMeterLastVal = None
-                totalEnergyAccGenLastVal = None
-            else:
-                totalEnergytAccMeterLastVal = totalEnergytAccMeter
-                totalEnergyAccGenLastVal = totalEnergyAccGen
+                    lastTimeReading = datetime.now()
 
-                lastTimeReading = datetime.now()
-
-            # send back to devices
-            for value2Send in list2SendPermition2Work:
-                argumentTank = "?DeviceRef="+ value2Send["DeviceRef"] +"&DevicePermition=on"
-                sendLocalHTTPRequest(value2Send["LinkConn"], argumentTank)
+                # send back to devices
+                for value2Send in list2SendPermition2Work:
+                    argumentDevice = "?DeviceRef="+ value2Send["DeviceRef"] +"&DevicePermition=on"
+                    sendLocalHTTPRequest(value2Send["LinkConn"], argumentDevice)
 
             # remove permition given if to off
-            # TODO, check if any program start next minute
+            if (currentDate - lastTimeCheckOff).total_seconds() / 60.0 > settingsEnergyManager['timeInterCharge'] / 5.0:
+                if validReading and energyEfective < 0:
+                    listDevice2TurnOff = []
 
-        counterFullCheck = counterFullCheck - 1
-        if counterFullCheck < 0 or needNewRequest:
-            counterFullCheck = 60
-            
-            #totalPowerMeter, totalEnergytAccMeter, totalEnergyAccGen, netMetterReading = get_meter_values(settingsEnergyManager['netMeter'], repeatedReading)
+                    # check non mandatory device that can be turn on
+                    mutexDeviceKnowConsp.acquire()
+                    for currValue in listDeviceKnowConsp:
+                        if not currValue["MandatoryWork"]:
+                            dateMinWork = datetime.strptime(currValue["TurnOffMinDateTime"], "%Y/%m/%d %H:%M:%S")
+                            if currentDate > dateMinWork:
+                                # already work needed time
+                                listDevice2TurnOff.append(copy.deepcopy(currValue))
+                    mutexDeviceKnowConsp.release()
 
-            # get meter definitions
-            time2Charge = settingsEnergyManager['timeInterCharge']
+                    # send orders to turn off for devices
+                    for value2Off in listDevice2TurnOff:
+                        argumentDevice = "?DeviceRef="+ value2Off["DeviceRef"] +"&DevicePermition=off"
+                        sendLocalHTTPRequest(value2Send["LinkConn"], argumentDevice)
 
-            # if have perion of charge
-            # TODO
+                if validReading:
+                    lastTimeCheckOff = datetime.now()
 
 def processOffGridData():
     global threadOfGridProcessIsRunning, commandsOffGridQueu, offGridStationsDef, lockOffGridStationsDef
@@ -881,7 +895,10 @@ class energy_equipment(ProtectedPage):
             if qdict["NewState"] == 'on':
                 # add to list
                 listDeviceKnowConsp[currentKey] = {}
-                listDeviceKnowConsp[currentKey]["NewState"] = newState
+
+                listDeviceKnowConsp[currentKey]["ExtentionName"] = extentionName
+                listDeviceKnowConsp[currentKey]["DeviceRef"] = deviceRef
+
                 listDeviceKnowConsp[currentKey]["PowerDevice"] = powerDevice
                 listDeviceKnowConsp[currentKey]["MandatoryWork"] = mandatoryWorking
 
@@ -947,8 +964,6 @@ class energy_resquest_permition(ProtectedPage):
             listSubscriptionGetEnergyNew["AvoidIrrigationProgram"] = avoidIrrigationProgram
             listSubscriptionGetEnergyNew["HoursCanWait"] = hoursCanWait
             listSubscriptionGetEnergyNew["Priority"] = priority
-
-            listSubscriptionGetEnergyNew["IsOn"] = False # indicate if device is working or not, on request by default off, only start with energy permition
 
             listSubscriptionGetEnergy.append(listSubscriptionGetEnergyNew)
             mutexSubscriptionGetEnergy.release()
