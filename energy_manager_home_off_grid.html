@@ -229,6 +229,14 @@ $var page: energy_manager_home_off_grid  <!--Edit: page name, used internally-->
 				xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=ECONSP", false);
 				xmlhttp.send(null);
 				document.getElementById("OffGrid${offGridName.replace(" ", "")}CONSPET").innerHTML = xmlhttp.responseText + " W/h";
+
+			xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=BATTERYVOLT", false);
+			xmlhttp.send(null);
+			document.getElementById("OffGrid${offGridName.replace(" ", "")}BATTVOLT").innerHTML = xmlhttp.responseText + " V";
+
+			xmlhttp.open("GET", "/energy-manager-offgrid-demand?OffGridRef=${offGridName.replace(" ", "")}&SourceName=BATTERYPERC", false);
+			xmlhttp.send(null);
+			document.getElementById("OffGrid${offGridName.replace(" ", "")}BATTPERC").innerHTML = xmlhttp.responseText + " %";
 	}
 
 	const tellTime = async function () {
@@ -275,9 +283,9 @@ $var page: energy_manager_home_off_grid  <!--Edit: page name, used internally-->
 				<th>Battery</th>
 			</tr>
 			<tr>
-				<td id="OffGrid${offGridName.replace(" ", " ")}PRODUCTION"></td>
-				<td id="OffGrid${offGridName.replace(" ", " ")}CONSUPTION"></td>
-				<td id="OffGrid${offGridName.replace(" ", " ")}BATTERY"></td>
+				<td id="OffGrid${offGridName.replace(" ", "")}PRODUCTION"></td>
+				<td id="OffGrid${offGridName.replace(" ", "")}CONSUPTION"></td>
+				<td id="OffGrid${offGridName.replace(" ", "")}BATTERY"></td>
 			</tr>
 		</table>
 
@@ -337,8 +345,8 @@ $var page: energy_manager_home_off_grid  <!--Edit: page name, used internally-->
 				</tr>
 				<tr>
 					<td>Grand Total</td>
-					<td id="OffGrid${offGridName.replace(" ", " ")}VSOLARPGT"></td>
-					<td id="OffGrid${offGridName.replace(" ", " ")}VSOLAREGT"></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}VSOLARPGT"></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}VSOLAREGT"></td>
 				</tr>
 			</table>
 
@@ -388,18 +396,18 @@ $var page: energy_manager_home_off_grid  <!--Edit: page name, used internally-->
 				$for i in range(settings[offGridName]["WindVN"]):
 					<tr>
 						<td>Wind Virtual ${i}</td>
-						<td id="OffGrid${offGridName.replace(" ", " ")}VWINDP${i}"></td>
-						<td id="OffGrid${offGridName.replace(" ", " ")}VWINDE${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", "")}VWINDP${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", "")}VWINDE${i}"></td>
 					</tr>
 				<tr>
 					<td>Total</td>
-					<td id="OffGrid${offGridName.replace(" ", " ")}VWINDPT"></td>
-					<td id="OffGrid${offGridName.replace(" ", " ")}VWINDET"></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}VWINDPT"></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}VWINDET"></td>
 				</tr>
 				<tr>
 					<td>Grand Total</td>
-					<td id="OffGrid${offGridName.replace(" ", " ")}VWINDPGT"></td>
-					<td id="OffGrid${offGridName.replace(" ", " ")}VWINDEGT"></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}VWINDPGT"></td>
+					<td id="OffGrid${offGridName.replace(" ", "")}VWINDEGT"></td>
 				</tr>
 			</table>
 
@@ -420,10 +428,10 @@ $var page: energy_manager_home_off_grid  <!--Edit: page name, used internally-->
 				$for i in range(settings[offGridName]["TotalGen"]):
 					<tr>
 						<td>Total generation ${i}</td>
-						<td id="OffGrid${offGridName.replace(" ", " ")}GENTOTALV${i}"></td>
-						<td id="OffGrid${offGridName.replace(" ", " ")}GENTOTALC${i}"></td>
-						<td id="OffGrid${offGridName.replace(" ", " ")}GENTOTALP${i}"></td>
-						<td id="OffGrid${offGridName.replace(" ", " ")}GENTOTALE${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", "")}GENTOTALV${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", "")}GENTOTALC${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", "")}GENTOTALP${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", "")}GENTOTALE${i}"></td>
 					</tr>
 				<tr>
 					<td>Total of total generation</td>
@@ -451,10 +459,10 @@ $var page: energy_manager_home_off_grid  <!--Edit: page name, used internally-->
 				$for i in range(settings[offGridName]["TotalConspN"]):
 					<tr>
 						<td>Total Consuption ${i}</td>
-						<td id="OffGrid${offGridName.replace(" ", " ")}CONSPV${i}"></td>
-						<td id="OffGrid${offGridName.replace(" ", " ")}CONSPC${i}"></td>
-						<td id="OffGrid${offGridName.replace(" ", " ")}CONSPP${i}"></td>
-						<td id="OffGrid${offGridName.replace(" ", " ")}CONSPE${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", "")}CONSPV${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", "")}CONSPC${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", "")}CONSPP${i}"></td>
+						<td id="OffGrid${offGridName.replace(" ", "")}CONSPE${i}"></td>
 					</tr>
 				<tr>
 					<td>Total of total generation</td>
@@ -464,5 +472,23 @@ $var page: energy_manager_home_off_grid  <!--Edit: page name, used internally-->
 					<td id="OffGrid${offGridName.replace(" ", "")}CONSPET"></td>
 				</tr>
 			</table>
+
+		<br />
+		<div align="center" style="times new roman; font-weight:bold; font-size:20px;">
+			Baterry status:
+		</div>
+		<br />
+		<table style="width:100%" border="1">
+			<tr>
+				<th>Voltage</th>
+				<th>Percentage</th>
+			</tr>
+
+			<tr>
+				<td id="OffGrid${offGridName.replace(" ", " ")}BATTVOLT"></td>
+				<td id="OffGrid${offGridName.replace(" ", " ")}BATTPERC"></td>
+			</tr>
+		</table>
+
     <br /><br />
 </div>

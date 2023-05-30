@@ -300,9 +300,13 @@ def checkDevicesWaitingForEnergyOrStop():
     if not validReading:
         totalEnergytAccMeterLastVal = None
         totalEnergyAccGenLastVal = None
-    else:
-        lastTimeReading = datetime.now()
-        lastTimeCheckOff = copy.deepcopy(lastTimeReading)
+
+        while not validReading:
+            sleep(20)
+            totalPowerMeter, totalEnergytAccMeterLastVal, totalEnergyAccGenLastVal, netMetterReading, validReading = get_meter_values(settingsEnergyManager['netMeter'], repeatedReading)
+
+    lastTimeReading = datetime.now()
+    lastTimeCheckOff = copy.deepcopy(lastTimeReading)
 
     while isMainTreadRun:
         sleep(1)
@@ -326,7 +330,12 @@ def checkDevicesWaitingForEnergyOrStop():
         if lastTimeReading != None:
             # check energy available to start
             repeatedReading = {}
-            totalPowerMeter, totalEnergytAccMeter, totalEnergyAccGen, netMetterReading, validReading = get_meter_values(settingsEnergyManager['netMeter'], repeatedReading)
+            validReading = False
+            while not validReading:
+                totalPowerMeter, totalEnergytAccMeter, totalEnergyAccGen, netMetterReading, validReading = get_meter_values(settingsEnergyManager['netMeter'], repeatedReading)
+                if not validReading:
+                    sleep(20)
+
             energyConsp = totalEnergytAccMeter - totalEnergytAccMeterLastVal
             energySend = totalEnergyAccGen - totalEnergyAccGenLastVal
 
@@ -352,7 +361,7 @@ def checkDevicesWaitingForEnergyOrStop():
                                     if prog_match_time_running(p, futureTime) and any(p[u"duration_sec"]):
                                         anyProgramRunning = True
 
-                        if not anyProgramRunning:# and currentSubcription["EnergyPower"] * 1.2 < powerAvailableMean and not currentSubcription["IsOn"]:
+                        if not anyProgramRunning:# and currentSubcription["PowerDevice"] * 1.2 < powerAvailableMean and not currentSubcription["IsOn"]:
                             # add 2 list of devices to start working
                             list2SendPermition2Work.append(copy.deepcopy(currentSubcription))
                             listSubscriptionGetEnergy.remove(currentSubcription) # remove permition request
@@ -374,27 +383,26 @@ def checkDevicesWaitingForEnergyOrStop():
                     sendLocalHTTPRequest(value2Send["LinkConn"], argumentDevice)
 
             # remove permition given if to off
-            if (currentDate - lastTimeCheckOff).total_seconds() / 60.0 > settingsEnergyManager['timeInterCharge'] / 5.0:
-                if validReading and energyEfective < 0:
+            if (currentDate - lastTimeCheckOff).total_seconds() / 60.0 > 1.0:#settingsEnergyManager['timeInterCharge'] / 5.0:
+                if True:#validReading and energyEfective < 0:
                     listDevice2TurnOff = []
 
                     # check non mandatory device that can be turn on
                     mutexDeviceKnowConsp.acquire()
                     for currValue in listDeviceKnowConsp:
-                        if not currValue["MandatoryWork"]:
-                            dateMinWork = datetime.strptime(currValue["TurnOffMinDateTime"], "%Y/%m/%d %H:%M:%S")
+                        if not listDeviceKnowConsp[currValue]["MandatoryWork"]: # BUG: TODO
+                            dateMinWork = datetime.strptime(listDeviceKnowConsp[currValue]["TurnOffMinDateTime"], "%Y/%m/%d %H:%M:%S")
                             if currentDate > dateMinWork:
                                 # already work needed time
-                                listDevice2TurnOff.append(copy.deepcopy(currValue))
+                                listDevice2TurnOff.append(copy.deepcopy(listDeviceKnowConsp[currValue]))
                     mutexDeviceKnowConsp.release()
 
                     # send orders to turn off for devices
                     for value2Off in listDevice2TurnOff:
                         argumentDevice = "?DeviceRef="+ value2Off["DeviceRef"] +"&DevicePermition=off"
-                        sendLocalHTTPRequest(value2Send["LinkConn"], argumentDevice)
+                        sendLocalHTTPRequest(value2Off["UrlStop"], argumentDevice)
 
-                if validReading:
-                    lastTimeCheckOff = datetime.now()
+                lastTimeCheckOff = datetime.now()
 
 def processOffGridData():
     global threadOfGridProcessIsRunning, commandsOffGridQueu, offGridStationsDef, lockOffGridStationsDef
@@ -493,6 +501,14 @@ def processOffGridData():
 
                 offGridDateOnDemand[dataOffGrind["OffGridRef"]]["DateTime"] = dataOffGrind["DateTime"]
 
+                # get battery voltage and percentage
+                if "BattVol" in dataOffGrind and "BattPerc" in dataOffGrind:
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["BattVol"] = dataOffGrind["BattVol"]
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["BattPerc"] = dataOffGrind["BattPerc"]
+                else:
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["BattVol"] = 0
+                    offGridDateOnDemand[dataOffGrind["OffGridRef"]]["BattPerc"] = 0
+
                 offGridDateOnDemandLock.release()
 
                 if withDBLogger and (lastDateTimeSave == None or (dataOffGrind["DateTime"] - lastDateTimeSave).total_seconds() / 60.0 > 5.0):
@@ -528,7 +544,7 @@ def load_commands_energy():
         dbDefinitions = db_logger_read_definitions()
 
         # create table with charge
-        listElements = {"EnergyEquimentOnoffRef" : "varchar(200)", "EnergyEquimentOnoffState" : "bool", "EnergyEquimentOnoffDateTime" : "datetime", "EnergyEquimentOnoffPower" : "double", "EnergyEquimentOnoffDutyCycle" : "double"}
+        listElements = {"EnergyEquimentOnoffRef" : "varchar(200)", "EnergyEquimentOnoffState" : "bool", "EnergyEquimentOnoffDateTime" : "datetime", "EnergyEquimentOnoffPower" : "double", "EnergyEquimentOnoffDutyCycle" : "double", "EnergyEquimentOnoffMandatory" : "bool"}
         create_generic_table("energy_equiment_onoff", listElements, dbDefinitions)
 
     # Launch threads
@@ -875,6 +891,8 @@ class energy_equipment(ProtectedPage):
     """
 
     def GET(self):
+        global withDBLogger
+
         qdict = web.input()
 
         if "ExtentionName" in qdict and "DeviceRef" in qdict and "NewState" in qdict and "UrlStop" in qdict and "PowerDevice" in qdict and "TurnOffMinDateTime" in qdict and (qdict["NewState"] == 'on' or qdict["NewState"] == 'off'):
@@ -889,7 +907,7 @@ class energy_equipment(ProtectedPage):
             # TODO: mandatory working
             mandatoryWorking = "MandatoryWork" in qdict
 
-            currentKey = extentionName +":"+ deviceRef
+            currentKey = extentionName +"_"+ deviceRef
 
             mutexDeviceKnowConsp.acquire()
             if qdict["NewState"] == 'on':
@@ -908,7 +926,26 @@ class energy_equipment(ProtectedPage):
                 del listDeviceKnowConsp[currentKey]
             mutexDeviceKnowConsp.release()
 
-            # TODO: save to data-base
+            # save to data-base
+            dbDefinitions = {}
+            if withDBLogger:
+                dbDefinitions = db_logger_read_definitions()
+
+                listData = []
+                listData.append(extentionName +"_"+ deviceRef)
+                if qdict["NewState"] == 'on':
+                    listData.append(1)
+                else:
+                    listData.append(0)
+                listData.append(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                listData.append(powerDevice)
+                listData.append(1.0) # dutty cycle 0 - 1.0
+                if mandatoryWorking:
+                    listData.append(1)
+                else:
+                    listData.append(0)
+
+                add_date_generic_table('energy_equiment_onoff', listData, dbDefinitions)
 
 class energy_resquest_permition(ProtectedPage):
     """
@@ -920,13 +957,13 @@ class energy_resquest_permition(ProtectedPage):
 
         qdict = web.input()
 
-        if "ExtentionName" in qdict and "DeviceRef" in qdict and "LinkConn" in qdict and "MinWorkingTime" in qdict and "ExpectedWorkingTime" in qdict and "EnergyPower" in qdict:
+        if "ExtentionName" in qdict and "DeviceRef" in qdict and "LinkConn" in qdict and "MinWorkingTime" in qdict and "ExpectedWorkingTime" in qdict and "PowerDevice" in qdict:
             ententionName = qdict["ExtentionName"]
             deviceRef = qdict["DeviceRef"]
             linkConn = qdict["LinkConn"]
             try:
                 minWorkingTime = float(qdict["MinWorkingTime"])
-                energyPower = float(qdict["EnergyPower"])
+                energyPower = float(qdict["PowerDevice"])
                 expectedWorkingTime = float(qdict["ExpectedWorkingTime"])
             except:
                 return "NOK"
@@ -959,7 +996,7 @@ class energy_resquest_permition(ProtectedPage):
             listSubscriptionGetEnergyNew["DeviceRef"] = deviceRef
             listSubscriptionGetEnergyNew["LinkConn"] = linkConn
             listSubscriptionGetEnergyNew["MinWorkingTime"] = minWorkingTime
-            listSubscriptionGetEnergyNew["EnergyPower"] = energyPower
+            listSubscriptionGetEnergyNew["PowerDevice"] = energyPower
             listSubscriptionGetEnergyNew["ExpectedWorkingTime"] = expectedWorkingTime
             listSubscriptionGetEnergyNew["AvoidIrrigationProgram"] = avoidIrrigationProgram
             listSubscriptionGetEnergyNew["HoursCanWait"] = hoursCanWait
@@ -1343,6 +1380,12 @@ class offgrid_ged_current_val(ProtectedPage):
 
                 if windEValid:
                     dataOut = str(round(windEVirtual, 2))
+
+                # baterry percentage and voltage
+                if qdict["SourceName"] == "BATTERYVOLT":
+                    dataOut = str(round(offGridStationsDef[qdict["OffGridRef"]]["BattVol"], 2))
+                elif qdict["SourceName"] == "BATTERYPERC":
+                    dataOut = str(round(offGridStationsDef[qdict["OffGridRef"]]["BattPerc"], 2))
 
                 # if result is a combination of results, need to do calculations
                 if qdict["SourceName"] == "VSOLARPGT":
